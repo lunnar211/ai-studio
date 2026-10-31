@@ -16,7 +16,7 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 
 | Route | Behaviour |
 | --- | --- |
-| `POST /api/logo/generate` | Zod-validated `{prompt, style, colors}`. Groq `llama-3.3-70b-versatile` returns SVG only; output is whitelist-sanitized server-side. Brand/celebrity prompts refused (400). Without `GROQ_API_KEY` returns an honest 503 — never a fake logo. |
+| `POST /api/logo/generate` | Zod-validated `{prompt, style, colors}`. Groq `openai/gpt-oss-20b` returns SVG only; output is whitelist-sanitized server-side. Brand/celebrity prompts refused (400). Without `GROQ_API_KEY` returns an honest 503 — never a fake logo. |
 | `POST /api/logo/png` | Sanitizes the supplied SVG again, rasterizes with Sharp at 1024px, transparent background. |
 | `POST /api/enhance` | Multipart image, magic-byte validated JPG/PNG/WebP, max 10 MB. Replicate `nightmareai/real-esrgan` when `REPLICATE_API_TOKEN` is set and succeeds (labelled `ai`); otherwise Sharp 2x lanczos3 + sharpen + normalize (labelled `sharp`, never claimed as AI). |
 
