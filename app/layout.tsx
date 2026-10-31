@@ -1,0 +1,42 @@
+import type { Metadata } from "next";
+import { Inter, Playfair_Display } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { Analytics } from "@vercel/analytics/next";
+import "./globals.css";
+import { Header } from "@/components/site/Header";
+import { Footer } from "@/components/site/Footer";
+import { CookieBanner } from "@/components/site/CookieBanner";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", style: ["normal", "italic"], display: "swap" });
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://ai-studio.vercel.app"),
+  title: { default: "AI Studio — Free AI Logo Generator and Photo Enhancer", template: "%s | AI Studio" },
+  description: "Free AI tools: generate an original logo from a description, and enhance your photos. No account needed for the free tier.",
+  openGraph: {
+    type: "website",
+    siteName: "AI Studio",
+    title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
+    description: "Generate an original logo from a description, and enhance your photos. Free tier, no account needed.",
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
+      <body className="min-h-screen">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:font-semibold">
+            Skip to main content
+          </a>
+          <Header />
+          <main id="main" className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+          <Footer />
+          <CookieBanner />
+          <Analytics />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
