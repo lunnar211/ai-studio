@@ -10,6 +10,8 @@ const NAV = [
   { href: "/photo-enhancer", label: "Photo Enhancer" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
+  { href: "/signin", label: "Sign in" },
+  { href: "/account", label: "My account" },
 ];
 
 export function Header() {

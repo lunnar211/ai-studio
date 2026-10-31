@@ -6,6 +6,7 @@ import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { CookieBanner } from "@/components/site/CookieBanner";
+import { AnnouncementBanner } from "@/components/site/AnnouncementBanner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", style: ["normal", "italic"], display: "swap" });
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Skip to main content
           </a>
           <Header />
+          <AnnouncementBanner />
           <main id="main" className="mx-auto max-w-6xl px-4 py-8">{children}</main>
           <Footer />
           <CookieBanner />

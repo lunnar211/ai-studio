@@ -1,0 +1,73 @@
+# Compliance Checklist — AI Studio
+
+Status key: DONE = implemented in code and verified as far as this sandbox
+allows; NEEDS-OWNER-ACTION = needs the owner's account, taps, or a live
+third-party step that no agent can do alone. Nothing below is claimed done
+unless the evidence column says how it was checked.
+
+## Google OAuth verification
+
+| Rule | Status | Evidence / file |
+| --- | --- | --- |
+| Google-only sign-in, minimal scopes openid/email/profile | DONE | `lib/auth.ts` (Google provider, explicit scope params) |
+| Credentials via env only, never hardcoded | DONE | `lib/auth.ts` reads `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`AUTH_SECRET`; secrets grep clean |
+| App name, logo, privacy + terms URLs, authorized domains in Cloud Console | NEEDS-OWNER-ACTION | Owner creates the Google Cloud OAuth client, adds redirect URI `https://ai-studio-sandy-sigma.vercel.app/api/auth/callback/google` (and the sister site's URI in the same project if sharing), sets app name/logo, links `/privacy` + `/terms`. |
+| One project can serve both sites (both redirect URIs) | DONE (documented) | README architecture section; separate AUTH_SECRET per site |
+| HONEST CAVEAT: full OAuth verification needs a verified domain the owner controls; a vercel.app subdomain cannot be verified. OAuth works in Testing mode immediately (test users only); production verification needs a custom domain. Verification is NOT claimed done. | NEEDS-OWNER-ACTION | README + this file |
+
+## AdSense program policies
+
+| Rule | Status | Evidence / file |
+| --- | --- | --- |
+| Original content, required pages present | DONE | `/`, tool pages, `/about`, `/contact`, `/privacy`, `/terms`, `/cookies`, `/refund-policy`, `/acceptable-use`, `/dmca`, `/disclaimer` |
+| Ads only after approval + consent | DONE | `components/site/AdSlot.tsx` renders nothing without publisher ID AND cookie-banner acceptance |
+| No ads on login/admin/account/empty pages | DONE | AdSlot is never placed on `/signin`, `/admin`, `/account`; no ad slot is rendered anywhere today (publisher ID unset) |
+| AdSense approval itself | NEEDS-OWNER-ACTION | Owner's AdSense application; approval email awaited; then set `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` |
+
+## Paddle business rules
+
+| Rule | Status | Evidence / file |
+| --- | --- | --- |
+| Merchant of record; 5% + $0.50 fee; fee not refunded on refunds | DONE (stated) | `/refund-policy`, `app/admin/money/page.tsx` fee estimate, README |
+| Payouts: monthly, balance over $100 on the 1st sent by the 15th, up to 3 working days, wire or Payoneer; FX margin up to 1.5%; possible $15 SWIFT fee | DONE (documented) | README owner steps |
+| Nepal not on Paddle's unsupported list (sanctions-only) | DONE (per coordinator research, Nov 2026 sources) | README |
+| Sandbox-first implementation, idempotent webhook, no card data stored | DONE (code) | `app/api/checkout/route.ts`, `app/api/webhooks/paddle/route.ts`, SDK signature test in SECURITY_REPORT.md |
+| Paddle account, verification (passport as individual), product + monthly price, payout method, webhook endpoint `https://ai-studio-sandy-sigma.vercel.app/api/webhooks/paddle`, env vars, switch PADDLE_ENV to production after sandbox test | NEEDS-OWNER-ACTION | README owner steps |
+| Live sandbox checkout test with Paddle test cards | NEEDS-OWNER-ACTION | Needs sandbox keys; record evidence when run |
+
+## Vercel fair use
+
+| Rule | Status | Evidence / file |
+| --- | --- | --- |
+| No large binaries in repo; every tracked file base64 under ~120 KB | DONE | No binaries added; no test screenshots/videos in repo; check before push |
+| Deploys without teamId | DONE | Deploy step uses no teamId (see README) |
+| Build succeeds with DATABASE_URL unset | DONE | Local build exit 0 with DATABASE_URL unset (prisma generate + next build); guest tools work without DB |
+
+## Nepal Privacy Act 2018 + Electronic Transactions Act
+
+| Rule | Status | Evidence / file |
+| --- | --- | --- |
+| Data rights (export + delete) offered | DONE | `/account` export/delete; `app/api/account/*` |
+| Data minimization (hashed IPs only, no file contents, no card data, 90-day job retention) | DONE | `lib/ip-hash.ts`, `prisma/schema.prisma`, `app/api/admin/cleanup/route.ts` |
+| Stated accurately, not as legal advice | DONE | `/privacy` and `/terms` carry "not legal advice" wording |
+| Nepal's Privacy Act 2018 sets no fixed digital-consent age, so 16 is the conservative alignment (GDPR default); under-13 blocked entirely; 18+ for paid (contractual capacity) | DONE | `lib/age.ts`, `/terms`, `/onboarding` |
+
+## Age thresholds — reasoning (also on /terms)
+
+- Under 13: blocked entirely, no data kept (COPPA + GDPR-K lower bound).
+- 13–15: account cannot be activated.
+- 16–17: free account only, paid checkout blocked (GDPR default
+  digital-consent age, strictest common standard).
+- 18+: paid plans allowed (contractual capacity).
+- Self-declaration only; no ID documents are ever requested.
+
+## Shared database + SSO limit (honest)
+
+- Shared: DATABASE_URL (same Neon project) — the user row is shared
+  between AI Studio and PDF Tools Hub.
+- NOT shared: AUTH_SECRET (different per site; sharing one would let one
+  site forge the other's tokens).
+- SSO limit: true one-login SSO across two different vercel.app domains
+  is NOT possible (cookies cannot cross domains). This build gives a
+  shared DB + per-site sessions. SSO-on-a-shared-domain is a later step
+  once custom domains exist.

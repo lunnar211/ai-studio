@@ -21,9 +21,9 @@ export default function About() {
       </p>
       <h2 className="mt-8 text-2xl font-bold">Free tier and premium</h2>
       <p className="mt-3 text-muted-fg dark:text-slate-300">
-        The free tier allows 10 AI generations per day per visitor. A premium plan with higher limits, no ads
-        and HD export is planned but not for sale yet. When it launches, payment will be handled by a payment
-        provider — this site never asks you to type card details into a form here.
+        The free tier allows 10 AI generations per day per visitor. Signed-in users get higher limits,
+        and a Premium plan with higher limits is sold through Paddle (merchant of record) once checkout
+        is configured — this site never asks you to type card details into a form here.
       </p>
     </div>
   );

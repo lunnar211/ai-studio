@@ -20,7 +20,11 @@ export function Footer() {
               ["/about", "About"],
               ["/contact", "Contact"],
               ["/privacy", "Privacy Policy"],
-              ["/terms", "Terms of Use"],
+              ["/terms", "Terms of Service"],
+              ["/cookies", "Cookie Policy"],
+              ["/refund-policy", "Refund Policy"],
+              ["/acceptable-use", "Acceptable Use"],
+              ["/dmca", "DMCA / Takedown"],
               ["/disclaimer", "Disclaimer"],
             ].map(([href, label]) => (
               <li key={href}>

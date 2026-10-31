@@ -26,3 +26,51 @@ export function findBlockedTerm(prompt: string): string | null {
   }
   return null;
 }
+
+// Extended moderation categories (see /acceptable-use and the moderation
+// policy in README). Matching is deliberately broad and non-graphic: these
+// are category keywords, not a list of explicit content. A refused prompt
+// gets a plain message and the user can rephrase with an original concept.
+// The blocklist is a first-pass guard, not a legal opinion, and prompts are
+// never stored beyond an anonymised Job.inputSummary for abuse review.
+export const BLOCKED_CATEGORIES: Record<string, string[]> = {
+  // Copying an existing mark, logo or trade dress.
+  trademark: [
+    "logo of", "copy the logo", "same as", "official logo", "trademark",
+    "brand logo", "recreate the logo",
+  ],
+  // Illegal activity.
+  illegal: [
+    "counterfeit", "fake id", "forged document", "phishing", "malware",
+    "ransomware", "drug dealing", "weapon", "bomb", "explosive",
+  ],
+  // Sexual / abusive content.
+  sexual: [
+    "porn", "pornographic", "sexually explicit", "nude", "naked person",
+    "erotic", "sex toy",
+  ],
+  // Harassment, hate and abuse.
+  abusive: [
+    "hate symbol", "nazi symbol", "swastika", "harass", "bully",
+    "threatening", "racial slur",
+  ],
+};
+
+export function findBlockedCategory(prompt: string): string | null {
+  const lower = prompt.toLowerCase();
+  for (const [category, terms] of Object.entries(BLOCKED_CATEGORIES)) {
+    for (const term of terms) {
+      if (lower.includes(term)) return category;
+    }
+  }
+  return null;
+}
+
+// Combined check used by the logo route: brand terms first, then categories.
+export function findBlocked(prompt: string): { term: string; category: string } | null {
+  const term = findBlockedTerm(prompt);
+  if (term) return { term, category: "brand" };
+  const category = findBlockedCategory(prompt);
+  if (category) return { term: category, category };
+  return null;
+}

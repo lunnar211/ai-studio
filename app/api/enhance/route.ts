@@ -3,6 +3,8 @@ import sharp from "sharp";
 import { detectImageKind } from "@/lib/file-validate";
 import { checkAiRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { getSessionSafe } from "@/lib/auth";
+import { countJobsToday, dailyQuota, getSetting, isIpBlocked, logJob } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -46,7 +48,18 @@ async function replicateEnhance(input: Buffer, kind: string): Promise<Buffer | n
     }
     const out = pred.output;
     const url = Array.isArray(out) ? out[out.length - 1] : typeof out === "string" ? out : null;
-    if (!url || typeof url !== "string" || !url.startsWith("https://")) return null;
+    if (!url || typeof url !== "string") return null;
+    // SSRF guard: Replicate outputs live on replicate.delivery only. Any
+    // other host is refused (falls back to the Sharp pipeline, never fetched).
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null;
+    }
+    if (parsed.protocol !== "https:" || (parsed.hostname !== "replicate.delivery" && !parsed.hostname.endsWith(".replicate.delivery"))) {
+      return null;
+    }
     const img = await fetch(url);
     if (!img.ok) return null;
     return Buffer.from(await img.arrayBuffer());
@@ -56,13 +69,38 @@ async function replicateEnhance(input: Buffer, kind: string): Promise<Buffer | n
 }
 
 export async function POST(req: Request) {
+  if ((await getSetting("enhanceEnabled")) !== "true") {
+    return NextResponse.json({ error: "The photo enhancer is temporarily disabled." }, { status: 503 });
+  }
+  const session = await getSessionSafe();
+  const userId = (session?.user as unknown as { id?: string; plan?: string } | undefined)?.id ?? null;
+  const userPlan = (session?.user as unknown as { plan?: string } | undefined)?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
+  if ((session?.user as unknown as { status?: string } | undefined)?.status === "SUSPENDED") {
+    return NextResponse.json({ error: "Account suspended." }, { status: 403 });
+  }
   const ip = getClientIp(req);
-  const rl = await checkAiRateLimit(ip, "enhance");
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Daily free limit reached (10 enhancements per day). Please try again tomorrow." },
-      { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
-    );
+  if (await isIpBlocked(ip)) {
+    return NextResponse.json({ error: "Access from this network is blocked." }, { status: 403 });
+  }
+  let rl = { ok: true, remaining: 9, limit: 10 };
+  if (userId) {
+    const quota = await dailyQuota("enhance", userPlan as "FREE" | "PREMIUM");
+    const used = await countJobsToday(userId, "enhance");
+    rl = { ok: used < quota, remaining: Math.max(0, quota - used - 1), limit: quota };
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `Daily limit reached (${quota} enhancements per day on your plan). Please try again tomorrow.` },
+        { status: 429, headers: rateLimitHeaders(0, quota) }
+      );
+    }
+  } else {
+    rl = await checkAiRateLimit(ip, "enhance");
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Daily free limit reached (10 enhancements per day). Please try again tomorrow." },
+        { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
+      );
+    }
   }
 
   let form: FormData;
@@ -94,6 +132,7 @@ export async function POST(req: Request) {
   try {
     if (ai) {
       const meta = await sharp(ai).metadata();
+      await logJob({ userId, tool: "enhance", status: "SUCCESS", costEstimate: parseFloat(await getSetting("replicateCostPerJobUsd")) || 0.01 });
       return new NextResponse(new Uint8Array(ai), {
         headers: {
           "Content-Type": "image/png",
@@ -107,6 +146,7 @@ export async function POST(req: Request) {
     }
     const out = await sharpEnhance(buf);
     const meta = await sharp(out).metadata();
+    await logJob({ userId, tool: "enhance", status: "SUCCESS", costEstimate: 0 });
     return new NextResponse(new Uint8Array(out), {
       headers: {
         "Content-Type": "image/png",
@@ -118,6 +158,7 @@ export async function POST(req: Request) {
       },
     });
   } catch {
+    await logJob({ userId, tool: "enhance", status: "FAILED", errorCode: "ENHANCE_FAILED" });
     return NextResponse.json({ error: "Could not enhance that image. Please try another file." }, { status: 400 });
   }
 }

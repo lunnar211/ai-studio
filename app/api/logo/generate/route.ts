@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sanitizeSvg } from "@/lib/svg-sanitize";
-import { findBlockedTerm } from "@/lib/blocklist";
+import { findBlocked } from "@/lib/blocklist";
 import { checkAiRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { getSessionSafe } from "@/lib/auth";
+import { countJobsToday, dailyQuota, getSetting, isIpBlocked, logJob } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,21 +38,59 @@ export async function POST(req: Request) {
   }
   const { prompt, style, colors, turnstileToken } = parsed.data;
 
-  const blocked = findBlockedTerm(prompt);
+  const blocked = findBlocked(prompt);
   if (blocked) {
+    const session0 = await getSessionSafe();
+    await logJob({
+      userId: (session0?.user as unknown as { id?: string } | undefined)?.id ?? null,
+      tool: "logo",
+      status: "FAILED",
+      inputSummary: `blocked:${blocked.category}`,
+      errorCode: "BLOCKED_PROMPT",
+    });
     return NextResponse.json(
-      { error: "That prompt was refused because it references an existing brand, character or public figure. Please describe an original logo concept instead." },
+      { error: "That prompt was refused because it references an existing brand, character, public figure, or disallowed content. Please describe an original logo concept instead." },
       { status: 400 }
     );
   }
 
+  // Tool on/off + maintenance mode (admin settings; defaults keep the
+  // previous behaviour).
+  if ((await getSetting("logoEnabled")) !== "true") {
+    return NextResponse.json({ error: "The logo generator is temporarily disabled." }, { status: 503 });
+  }
+
+  // Signed-in users get the SiteSetting quota (counted from Job rows);
+  // guests keep the previous per-IP limit (10/day).
+  const session = await getSessionSafe();
+  const userId = (session?.user as unknown as { id?: string; plan?: string } | undefined)?.id ?? null;
+  const userPlan = (session?.user as unknown as { plan?: string } | undefined)?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
+  if ((session?.user as unknown as { status?: string } | undefined)?.status === "SUSPENDED") {
+    return NextResponse.json({ error: "Account suspended." }, { status: 403 });
+  }
   const ip = getClientIp(req);
-  const rl = await checkAiRateLimit(ip, "logo");
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Daily free limit reached (10 logos per day). Please try again tomorrow." },
-      { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
-    );
+  if (await isIpBlocked(ip)) {
+    return NextResponse.json({ error: "Access from this network is blocked." }, { status: 403 });
+  }
+  let rl = { ok: true, remaining: 9, limit: 10 };
+  if (userId) {
+    const quota = await dailyQuota("logo", userPlan as "FREE" | "PREMIUM");
+    const used = await countJobsToday(userId, "logo");
+    rl = { ok: used < quota, remaining: Math.max(0, quota - used - 1), limit: quota };
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `Daily limit reached (${quota} logos per day on your plan). Please try again tomorrow.` },
+        { status: 429, headers: rateLimitHeaders(0, quota) }
+      );
+    }
+  } else {
+    rl = await checkAiRateLimit(ip, "logo");
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Daily free limit reached (10 logos per day). Please try again tomorrow." },
+        { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
+      );
+    }
   }
 
   if (!(await verifyTurnstile(turnstileToken))) {
@@ -65,41 +105,48 @@ export async function POST(req: Request) {
     );
   }
 
-  try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        temperature: 0.7,
-        max_tokens: 2048,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You design original logos and return ONLY raw SVG markup, no markdown, no explanation. " +
-              "Style: " + STYLE_HINTS[style] + ". Palette: " + colors + ". " +
-              "Rules: completely original geometry, never copy an existing logo; no text unless the user asked for initials; " +
-              "no gradients abused as fills everywhere; viewBox 0 0 512 512; only svg, g, path, circle, rect, ellipse, polygon, polyline, line, defs, linearGradient, radialGradient and stop elements.",
-          },
-          { role: "user", content: `Logo concept: ${prompt}` },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      return NextResponse.json({ error: "Logo generation is unavailable right now. Please try again." }, { status: 502 });
+  // Server-side retry (max 3 attempts): gpt-oss-20b sometimes returns
+  // unusable output and the route previously answered 502 on the first
+  // miss. Retrying is honest — it never fabricates a logo, it just asks
+  // the model again. After 3 misses the honest 502 remains.
+  let lastSvg: string | null = null;
+  for (let attempt = 0; attempt < 3 && !lastSvg; attempt++) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          temperature: 0.7,
+          max_tokens: 2048,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You design original logos and return ONLY raw SVG markup, no markdown, no explanation. " +
+                "Style: " + STYLE_HINTS[style] + ". Palette: " + colors + ". " +
+                "Rules: completely original geometry, never copy an existing logo; no text unless the user asked for initials; " +
+                "no gradients abused as fills everywhere; viewBox 0 0 512 512; only svg, g, path, circle, rect, ellipse, polygon, polyline, line, defs, linearGradient, radialGradient and stop elements.",
+            },
+            { role: "user", content: `Logo concept: ${prompt}` },
+          ],
+        }),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const content = data.choices?.[0]?.message?.content ?? "";
+      lastSvg = sanitizeSvg(content);
+    } catch {
+      // Retry; the honest 502 below covers a full failure.
     }
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content ?? "";
-    const svg = sanitizeSvg(content);
-    if (!svg) {
-      return NextResponse.json({ error: "The AI response was not a usable logo. Please try again." }, { status: 502 });
-    }
-    return NextResponse.json({ svg }, { headers: rateLimitHeaders(rl.remaining, rl.limit) });
-  } catch {
-    return NextResponse.json({ error: "Logo generation is unavailable right now. Please try again." }, { status: 502 });
   }
+  if (!lastSvg) {
+    await logJob({ userId, tool: "logo", status: "FAILED", errorCode: "GROQ_UNUSABLE" });
+    return NextResponse.json({ error: "The AI response was not a usable logo. Please try again." }, { status: 502 });
+  }
+  await logJob({ userId, tool: "logo", status: "SUCCESS", costEstimate: parseFloat(await getSetting("groqCostPerJobUsd")) || 0.001 });
+  return NextResponse.json({ svg: lastSvg }, { headers: rateLimitHeaders(rl.remaining, rl.limit) });
 }

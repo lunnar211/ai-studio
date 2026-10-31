@@ -20,7 +20,7 @@ const TOOLS = [
 ];
 
 const FAQS = [
-  { q: "Is AI Studio really free?", a: "Yes. The free tier gives you 10 AI generations per day per visitor, with no account and no payment details. A premium plan with higher limits, no ads and HD export is planned; it is not for sale yet." },
+  { q: "Is AI Studio really free?", a: "Yes. The free tier gives you 10 AI generations per day per visitor, with no account and no payment details. Signed-in users get higher limits, and a Premium plan is sold through Paddle once checkout is configured." },
   { q: "What happens to my uploaded photos?", a: "Files are processed on our server and deleted immediately after processing (max 60 minutes in any case). We never list, share or train on them." },
   { q: "Can I use a generated logo for my business?", a: "Yes. Logos are generated as original geometry from your description. Prompts that reference existing brands, characters or public figures are refused, so the result is yours to use. For trademark registration, get independent legal advice." },
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },

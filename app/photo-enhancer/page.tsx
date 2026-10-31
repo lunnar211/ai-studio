@@ -41,6 +41,12 @@ export default function EnhancerPage() {
         after, then download the result as PNG. The result is always labelled honestly: AI enhanced,
         or enhanced at standard quality.
       </p>
+      <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
+        <strong>AI disclosure:</strong> when AI upscaling is available, your image is sent to the
+        Replicate API for processing and the result is labelled AI-generated. Otherwise a standard
+        sharpening pipeline runs on our own server and is labelled standard quality, never AI.
+        Uploads are deleted after processing and are never stored or shown to anyone else.
+      </p>
       <EnhancerTool />
       <section aria-labelledby="how-enhance" className="mt-12 border-2 border-line bg-white p-6 dark:bg-slate-900">
         <h2 id="how-enhance" className="font-display text-2xl font-bold italic">How to get the best result</h2>
