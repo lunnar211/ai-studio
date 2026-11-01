@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LIMITS } from "@/lib/limits";
-export const metadata: Metadata = { title: "Terms of Service — AI Studio", description: "Terms for using AI Studio's logo generator and photo enhancer." };
+export const metadata: Metadata = { title: "Terms of Service", description: "Terms for using AI Studio's logo generator and photo enhancer." };
 export default function Terms() {
   return (
     <div className="max-w-3xl space-y-6">

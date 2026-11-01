@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "DMCA / Takedown — AI Studio", description: "How to report infringing content on AI Studio." };
+export const metadata: Metadata = { title: "DMCA / Takedown", description: "How to report infringing content on AI Studio." };
 export default function Dmca() {
   return (
     <div className="max-w-3xl space-y-6">

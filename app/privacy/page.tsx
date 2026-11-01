@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LIMITS } from "@/lib/limits";
-export const metadata: Metadata = { title: "Privacy Policy — AI Studio", description: "How AI Studio handles your uploads, prompts, account data and payments." };
+export const metadata: Metadata = { title: "Privacy Policy", description: "How AI Studio handles your uploads, prompts, account data and payments." };
 export default function Privacy() {
   return (
     <div className="max-w-3xl space-y-6">

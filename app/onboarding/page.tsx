@@ -4,7 +4,7 @@ import { getSessionSafe } from "@/lib/auth";
 import { OnboardingForm } from "./OnboardingForm";
 
 export const metadata: Metadata = {
-  title: "Confirm your age — AI Studio",
+  title: "Confirm your age",
   robots: { index: false, follow: false },
 };
 

@@ -7,7 +7,7 @@ import { ExportButton, DeleteButton, CheckoutButton } from "./AccountActions";
 import LogoHistory from "@/components/LogoHistory";
 
 export const metadata: Metadata = {
-  title: "My account — AI Studio",
+  title: "My account",
   robots: { index: false, follow: false },
 };
 

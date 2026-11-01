@@ -4,7 +4,7 @@ import { authConfigured } from "@/lib/auth";
 import { safeRedirectPath } from "@/lib/redirect";
 
 export const metadata: Metadata = {
-  title: "Sign in — AI Studio",
+  title: "Sign in",
   description: "Sign in to AI Studio with Google for higher daily limits and job history.",
   robots: { index: false, follow: false },
 };

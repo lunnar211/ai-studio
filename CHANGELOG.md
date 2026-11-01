@@ -130,3 +130,30 @@ All work on the `full-upgrade` branch unless noted. Production
   effect deferred via requestAnimationFrame; unused import removed.
 - Verified: tsc clean, eslint clean on touched files, vitest 61/61,
   build EXIT=0.
+
+## Phase 4 — SEO core (this change; landing pages deferred to the end)
+
+- Brand appears ONCE in every <title>: 12 pages had "— AI Studio"
+  in their title AND the "%s | AI Studio" template, producing
+  "… | AI Studio | AI Studio" — suffixes removed so the template
+  adds the brand exactly once. Home title already had it once.
+- Home JSON-LD added: WebApplication + BreadcrumbList + FAQPage
+  (built from the page's own FAQ list). Logo + enhancer pages
+  already had SoftwareApplication + FAQPage (verified, kept).
+- Per-page twitter tags added to home, logo-generator, and
+  photo-enhancer matching each page's own OG text (photo page no
+  longer inherits logo text).
+- Sitemap + robots verified: public pages only; /admin, /account,
+  /signin, /onboarding, /api disallowed. No new public pages in
+  this phase, so no sitemap entries added.
+- Core Web Vitals notes: next/font with display:swap (kept);
+  enhancer <img> tags are user-uploaded blob URLs, so plain <img>
+  is correct there (next/image cannot optimize blobs); slider
+  aspect ratio is reserved. Lighthouse scores NOT measured: they
+  need a live browser + reachable preview URL, both blocked on
+  preview access (see report) — owed after preview is reachable.
+- Landing pages (/colorize-black-and-white-photo,
+  /restore-old-photos, /photo-upscaler) DEFERRED to the end per the
+  speed note, with the gallery + Nepali switch.
+- Verified: tsc clean, eslint clean on touched files, vitest 61/61,
+  build EXIT=0.

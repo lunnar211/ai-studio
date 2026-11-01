@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Cookie Policy — AI Studio", description: "Which cookies AI Studio uses and how consent works." };
+export const metadata: Metadata = { title: "Cookie Policy", description: "Which cookies AI Studio uses and how consent works." };
 export default function CookiesPage() {
   return (
     <div className="max-w-3xl space-y-6">

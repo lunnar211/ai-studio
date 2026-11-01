@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Disclaimer — AI Studio", description: "AI Studio disclaimer: generated logos and enhanced photos carry no guarantee." };
+export const metadata: Metadata = { title: "Disclaimer", description: "AI Studio disclaimer: generated logos and enhanced photos carry no guarantee." };
 export default function Disclaimer() {
   return (
     <div className="max-w-3xl space-y-6">

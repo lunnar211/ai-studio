@@ -7,6 +7,17 @@ import { RestoreSection } from "@/components/site/RestoreSection";
 export const metadata: Metadata = {
   title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
   description: "Generate an original logo from a short description, or enhance a photo in seconds. Free tier, no account needed, files deleted after processing.",
+  openGraph: {
+    title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
+    description: "Generate an original logo from a short description, or enhance a photo in seconds. Free tier, no account needed.",
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio — Free AI Logo Generator and Photo Enhancer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
+    description: "Generate an original logo from a short description, or enhance a photo in seconds. Free tier, no account needed.",
+    images: ["/og.jpg"],
+  },
 };
 
 const TOOLS = [
@@ -27,9 +38,41 @@ const FAQS = [
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },
 ];
 
+const appLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "AI Studio",
+  applicationCategory: "DesignApplication",
+  operatingSystem: "Web",
+  url: "https://ai-studio-sandy-sigma.vercel.app",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
+
+const breadcrumbLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://ai-studio-sandy-sigma.vercel.app/" },
+    { "@type": "ListItem", position: 2, name: "Logo Generator", item: "https://ai-studio-sandy-sigma.vercel.app/logo-generator" },
+    { "@type": "ListItem", position: 3, name: "Photo Enhancer", item: "https://ai-studio-sandy-sigma.vercel.app/photo-enhancer" },
+  ],
+};
+
 export default function Home() {
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       {/* Hero — the one bold element: a thick pink frame with a serif-italic headline */}
       <section className="border-4 border-brand bg-white p-6 sm:p-10 dark:bg-slate-900">
         <p className="text-base font-semibold text-brand-dark">Free AI tools, no account needed</p>

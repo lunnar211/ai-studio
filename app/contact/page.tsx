@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ContactForm } from "./ContactForm";
-export const metadata: Metadata = { title: "Contact AI Studio", description: "Contact AI Studio about the logo generator or photo enhancer." };
+export const metadata: Metadata = { title: "Contact", description: "Contact AI Studio about the logo generator or photo enhancer." };
 export default function Contact() {
   return (
     <div className="max-w-3xl">

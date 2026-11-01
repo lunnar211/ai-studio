@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LIMITS } from "@/lib/limits";
-export const metadata: Metadata = { title: "About AI Studio", description: "AI Studio makes two free AI tools: an original logo generator and a photo enhancer. No account needed for the free tier." };
+export const metadata: Metadata = { title: "About", description: "AI Studio makes two free AI tools: an original logo generator and a photo enhancer. No account needed for the free tier." };
 export default function About() {
   return (
     <div className="max-w-3xl">

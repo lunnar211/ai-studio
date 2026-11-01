@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AI Photo Enhancer | AI Studio",
     description: "Upload a photo and get a sharper, upscaled photo back in PNG, JPG, or WebP, with an honest AI or standard-quality label.",
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio photo enhancer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Photo Enhancer | AI Studio",
+    description: "Upload a photo and get a sharper, upscaled photo back in PNG, JPG, or WebP, with an honest AI or standard-quality label.",
+    images: ["/og.jpg"],
   },
 };
 

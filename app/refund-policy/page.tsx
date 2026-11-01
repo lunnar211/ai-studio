@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Refund Policy — AI Studio", description: "How Premium refunds work via Paddle." };
+export const metadata: Metadata = { title: "Refund Policy", description: "How Premium refunds work via Paddle." };
 export default function RefundPolicy() {
   return (
     <div className="max-w-3xl space-y-6">

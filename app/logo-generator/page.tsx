@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AI Logo Generator | AI Studio",
     description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG.",
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio logo generator" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Logo Generator | AI Studio",
+    description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG.",
+    images: ["/og.jpg"],
   },
 };
 

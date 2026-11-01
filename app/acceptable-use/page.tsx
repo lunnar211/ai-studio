@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Acceptable Use & Moderation Policy — AI Studio", description: "What is refused by AI Studio's moderation, and why." };
+export const metadata: Metadata = { title: "Acceptable Use & Moderation Policy", description: "What is refused by AI Studio's moderation, and why." };
 export default function AcceptableUse() {
   return (
     <div className="max-w-3xl space-y-6">
