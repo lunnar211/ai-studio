@@ -276,3 +276,55 @@ model AiUsageLog {
   @@index([provider, createdAt])
   @@index([userId, createdAt])
 }
+
+// AI-Studio-only additive model (Nov 2026): async photo jobs for
+// colorize / restore / colorize+HD (Phase 1). Vercel functions stop at
+// 60s, so long Replicate jobs run as a state machine driven by client
+// polling: the poll endpoint advances one step per call (check the
+// prediction, LAB-merge, start the upscale, finalize). The job id is a
+// random cuid held by the client (URL/localStorage) — that IS the
+// resume key. inputData holds the normalized upload ONLY until the
+// colorize step finishes, then it is cleared; resultData holds the
+// finished image ONLY until the user downloads it (or 2 hours, after
+// which polling reports it expired and the row is cleared). Nothing
+// here is ever listed or shared. The owner pushes the schema ONCE
+// (same push as AiUsageLog/LogoGeneration); until then the colorize
+// endpoints return an honest 503 and the capabilities endpoint
+// reports colorize as unavailable, so the UI never offers a dead
+// button. Ignored by the sister site.
+model PhotoJob {
+  id             String   @id @default(cuid())
+  userId         String?
+  mode           String   // "colorize" | "colorize-hd" | "restore"
+  status         String   // "QUEUED" | "COLORIZING" | "UPSCALING" | "SUCCEEDED" | "FAILED" | "CANCELED"
+  stage          String   // human-readable stage for the progress UI
+  style          String   @default("natural")
+  era            String   @default("")
+  intensity      Int      @default(70)
+  outputFormat   String   @default("jpg")
+  outputQuality  Int      @default(85)
+  scale          Int      @default(2)
+  faceEnhance    Boolean  @default(false)
+  colorized      Boolean  @default(false) // true once a colorize step ran (restore on colour photos skips it)
+  predictionId   String?
+  upscalePredId  String?
+  inputData      String?  // base64 normalized upload; cleared at terminal state
+  inputMime      String   @default("image/jpeg")
+  resultData     String?  // base64 finished image; cleared after 2h / on expiry
+  resultMime     String?
+  resultWidth    Int?
+  resultHeight   Int?
+  engine         String?  // honest engine note, e.g. "ai-colorize+ai-hd"
+  provider       String?
+  model          String?
+  deliveredAs    String?  // note when the delivered format differs from the request (size cap)
+  credits        Int      @default(2)
+  costEstimate   Float?   @default(0)
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}

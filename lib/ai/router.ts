@@ -361,13 +361,6 @@ export async function routeUpscale(opts: {
 }
 
 /** Start an async DDColor colorize prediction. Returns its id. */
-/**
- * Start an async Replicate colorize prediction. Like routeUpscale, this
- * does NOT write a usage row — the caller logs once at completion with
- * the real outcome. The caller owns the LAB merge, the intensity
- * scaling, and the honest "unavailable" message when Replicate is down
- * or unconfigured.
- */
 export async function routeColorizeStart(opts: {
   image: Buffer;
   kind: string;
@@ -404,3 +397,44 @@ export async function routeColorizeStart(opts: {
 
 export { replicateGet, replicateOutputUrl, replicateFetchOutput, replicateCostEstimate };
 export type { ReplicatePrediction };
+
+/**
+ * Start an async Real-ESRGAN upscale prediction (start-only, for the
+ * photo-job state machine). Like routeColorizeStart, this does NOT
+ * write a usage row — the caller logs once at completion with the real
+ * outcome and the job's credit cost.
+ */
+export async function routeUpscaleStart(opts: {
+  image: Buffer;
+  kind: string;
+  scale: 2 | 4;
+  faceEnhance?: boolean;
+}): Promise<{ predictionId: string }> {
+  const allSettings = await getSettings();
+  if (!providerEnabled("replicate", allSettings) || isTripped("replicate")) {
+    throw notConfiguredError("image-upscale");
+  }
+  const cap = await checkSpendCap();
+  if (!cap.ok) {
+    throw new AiError(
+      "AI_BUDGET_REACHED",
+      `The daily AI budget ($${cap.cap}) is reached. Upscaling will be available again tomorrow.`,
+      503
+    );
+  }
+  const mime = opts.kind === "png" ? "image/png" : opts.kind === "webp" ? "image/webp" : "image/jpeg";
+  const dataUri = `data:${mime};base64,${opts.image.toString("base64")}`;
+  try {
+    const id = await replicateStart({
+      model: REPLICATE_UPSCALE_MODEL,
+      version: REPLICATE_UPSCALE_VERSION,
+      input: { image: dataUri, scale: opts.scale, face_enhance: opts.faceEnhance ?? false },
+    });
+    recordSuccess("replicate");
+    return { predictionId: id };
+  } catch (err) {
+    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "Replicate could not start upscale.", 502);
+    recordFailure("replicate", e.rateLimited);
+    throw e;
+  }
+}

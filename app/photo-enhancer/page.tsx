@@ -30,24 +30,35 @@ const faqLd = {
   ],
 };
 
-export default function EnhancerPage() {
+export default async function EnhancerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const rawMode = typeof params.mode === "string" ? params.mode : "";
+  const initialMode =
+    rawMode === "colorize" || rawMode === "colorize-hd" || rawMode === "restore" ? rawMode : undefined;
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <h1 className="font-display text-4xl font-bold italic">AI Photo Enhancer</h1>
       <p className="mt-3 max-w-2xl text-lg text-muted-fg dark:text-slate-300">
-        Upload a photo and get a sharper, larger version back. Drag the slider to compare before and
-        after, then download the result as PNG or JPG. The result is always labelled honestly: AI enhanced,
-        or enhanced at standard quality.
+        Upload a photo and get a sharper, larger version back — or bring a black &amp; white photo
+        back to colour, or restore an old photo. Drag the slider to compare before and after, then
+        download the result. Every result is labelled honestly: AI enhanced, AI colorized, or
+        standard quality.
       </p>
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
-        <strong>AI disclosure:</strong> when AI upscaling is available, your image is sent to the
-        Replicate API for processing and the result is labelled AI-generated. Otherwise a standard
-        sharpening pipeline runs on our own server and is labelled standard quality, never AI.
-        Uploads are deleted after processing and are never stored or shown to anyone else.
+        <strong>AI disclosure:</strong> when AI upscaling or colorizing is available, your image is
+        sent to the Replicate API for processing and the result is labelled AI-generated — colorize
+        results always carry “AI colorized: colours are estimated”, because the colours are the
+        model&apos;s estimate, not the original colours. Otherwise a standard sharpening pipeline runs
+        on our own server and is labelled standard quality, never AI. Uploads are deleted after
+        processing and are never stored or shown to anyone else.
       </p>
-      <EnhancerTool />
+      <EnhancerTool initialMode={initialMode} />
       <section aria-labelledby="how-enhance" className="mt-12 border-2 border-line bg-white p-6 dark:bg-slate-900">
         <h2 id="how-enhance" className="font-display text-2xl font-bold italic">How to get the best result</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-6">
@@ -62,9 +73,10 @@ export default function EnhancerPage() {
         </p>
         <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
           Please do not upload abusive or illegal content. Uploads are checked by file type and size;
-          there is no external content-moderation service at launch. Files are processed on our server
-          and deleted immediately after processing (max 60 minutes in any case); we never list or share them.
-          Free tier: 10 enhancements per day per visitor.
+          there is no automated image-content check at launch — see the Acceptable Use page. Files are
+          processed on our server and deleted immediately after processing (max 60 minutes in any case);
+          we never list or share them.
+          Free tier: 10 photo credits per day per visitor (Enhance 1, Colorize/Restore 2, Colorize + HD 3).
         </p>
       </section>
       <section aria-labelledby="faq-enhance" className="mt-8">
