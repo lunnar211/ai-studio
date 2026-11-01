@@ -245,3 +245,70 @@ All work on the `full-upgrade` branch unless noted. Production
   Recorded as an open item, not silently dropped.
 - Verified: tsc clean, eslint clean, vitest 102/102, Playwright 19/19 (incl. 360px overflow
   on Home with the gallery), build EXIT=0, gallery images 200 on local server.
+
+## Fix — free + unlimited photos, no dead end, "Colorize anyway" (this change)
+
+Owner complaint (preview screenshot, 2026-11-01): Restore on a faded old photo showed
+"looks like a colour photo", a red "Colorize is unavailable right now", and
+"This will use 3 credits. Free: 10 photo credits per day." The credit line was the old
+Free allowance, not a payment demand — but it read as a block, and free-tier jobs were
+charged credits even when they ran on a free tier. Fixed:
+
+- FREE = UNLIMITED, forever, for everyone including guests: free-tier jobs (browser ONNX
+  Tier A + owner's HF Space Tier B + local Sharp) cost 0, have no daily cap, no credit
+  balance, and no credit copy anywhere on free paths. The 5/min per-IP limiter STAYS —
+  it is abuse protection, not a usage cap (it still allows thousands of uses per day).
+- Paid-GPU (Replicate) stays Premium-only: every GPU photo bills the owner per run, so
+  unlimited GPU would drain his money with no income. Premium = fast paid-GPU processing
+  + HD 4x up to 4096px + face enhance + priority. Free users are routed to the free tiers
+  first and NEVER to paid GPU — not even as a fall-through (tier order Free: Space only;
+  Premium: paid GPU, then Space). Opening GPU to everyone needs a separate explicit
+  owner decision with the cost warning attached.
+- No dead end: when server colorize is unavailable, the page offers the free browser
+  colorize path as the primary action ("Free — runs on your device, photo never leaves
+  your device"), and server failure responses carry a `freeAlternative` (browser, or
+  free Enhance for colour restore) so the UI offers the fitting free path instead of a
+  red box. Restore on a colour photo with no server now offers free Enhance; B&W restore
+  offers browser colorize with an honest "repair not included" note.
+- "Colorize anyway" override: the grayscale gate is now a hint, never a block. Faded/sepia
+  photos that measure as "colour" get the hint plus an override button; the user's explicit
+  choice beats the gate on both client and server (`colorizeAnyway`, honored by
+  `shouldRefuseColorize`). The gate itself still refuses plain server colorize on colour
+  photos without the override. Restore mode was also fixed: the gate no longer blocks
+  colour restore jobs (repair + upscale, no colorize) before they reach the restore branch.
+- Free jobs never start a paid-GPU upscale either: after Space colorize, free jobs
+  upscale with Sharp (standard quality, honestly labelled); the jobs poller finishes free
+  jobs with the Sharp fallback instead of polling a GPU prediction that must not exist.
+  Guest Enhance runs the local Sharp pipeline directly (verified: 32px fixture → 64px PNG,
+  `X-Quality: standard`, 5/min headers).
+- Model size corrected: the DeOldify browser model is ~64 MB (measured 64,020,138 bytes
+  from the model host), not ~25 MB — the download progress copy and tests now say so.
+- Copy rewritten to the new model everywhere: pricing (Free = unlimited via free routes;
+  Premium = paid-GPU speed + HD 4x + face enhance + priority; no invented price, Upgrade
+  still hidden when Paddle is unconfigured), FAQ, Home, About, Privacy, Terms, Footer,
+  photo-enhancer page, the 3 photo landing pages, account page (no photo count/limit),
+  admin labels (the free photo limit row is gone; Premium GPU budget row remains).
+  Logo budgets are UNCHANGED (Free 10/day, Premium 100/day, 1 request = 3 variants).
+- SETUP.md corrected: free fall-through is the browser path only (never Replicate);
+  the result Details lines must NOT name provider/model (P0 rule — those live only in
+  the server usage log); browser-path button label and model size updated.
+- P0 intact: leak scan re-run — no provider/model/env names in any API response or result
+  UI (public job state still returns only the neutral quality badge); magic-byte
+  validation, 10 MB limit, 5/min limiter, in-memory processing only.
+- Honest limits of this fix: the browser colorize path is wired (DeOldify ONNX, model
+  file reachable at ~64 MB from the host) and its tensor math is unit-tested, but a full
+  in-browser model run was NOT verified in the sandbox (sandbox Chromium has no internet
+  to download the model). It is covered by an env-gated Playwright test
+  (`E2E_BROWSER_COLORIZE=1`, skipped by default) for a real machine, plus the owner
+  preview checklist below. Server colorize still needs the owner's HF Space + env vars +
+  redeploy (SETUP.md §1–2) before the free server route works on the preview; until then
+  the free browser path is the working free route.
+- Verified: tsc clean, eslint clean, vitest 111/111, Playwright 22/22 (3 new free-photo
+  specs + 1 env-gated real-weights spec skipped by default), build EXIT=0, local
+  `next start` HTTP 200s on 9 pages, capabilities JSON shows `freeUnlimited: true` with
+  no credit fields, guest enhance 200 + standard quality, colorize 503s carry the free
+  alternative, and the colorizeAnyway override passes the server gate (503, not 400).
+- Owner preview checklist: upload a B&W photo → free browser colorize works with 0
+  credits → no credit block anywhere → "Colorize anyway" works on a faded photo → server
+  colorize (once the Space is set up) works free and unlimited → network responses still
+  leak-free. NEVER claimed preview-verified; merge to master still needs explicit approval.

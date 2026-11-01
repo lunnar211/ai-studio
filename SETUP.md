@@ -81,8 +81,11 @@ replacement token is verified (its vault token returns 401).
 2. On `/photo-enhancer`, choose **Colorize**, upload a black & white
    photo, and use **server colorize**. (Free users: the server path
    tries the Space first.)
-3. The result's **Details** line should say provider `huggingface`
-   and model = your Space id.
+3. The result should carry the neutral quality badge ("AI Enhanced")
+   and the note that colours are estimated. It must NOT name a
+   provider, model, or setting anywhere in the result UI or the
+   network response (P0 privacy rule) — the provider/model live only
+   in the server usage log, which is what step 4 checks.
 4. `/admin/ai-health` shows the Space job in the usage log (cost $0 —
    ZeroGPU minutes, not dollars).
 
@@ -91,9 +94,11 @@ replacement token is verified (its vault token returns 401).
 - Free account: **5 GPU-minutes per day**, resetting 24 hours after
   your first GPU use that day. PRO: 40 minutes/day.
 - When the quota is exhausted, Space jobs fail and the site falls
-  through honestly: Premium → Replicate; Free → Replicate, or the
-  free browser path. Nothing is faked and no job hangs (the 30-minute
-  stuck-job net still applies).
+  through honestly: Premium → Replicate (paid-GPU route); Free →
+  the free browser path. Free users are NEVER routed to Replicate —
+  every paid-GPU photo would bill the owner, so the free fall-through
+  is the browser path only. Nothing is faked and no job hangs (the
+  30-minute stuck-job net still applies).
 - Kill-switch: Admin → Settings → `ai.provider.huggingface` =
   `false` disables the Space instantly, no redeploy.
 
@@ -104,18 +109,18 @@ your browser + internet (the sandbox cannot download the model file
 or run a live browser):
 
 1. Open `/photo-enhancer` → **Colorize** → upload a black & white
-   photo → **"Colorize in browser — free"**.
+   photo → **"Colorize free in browser"**.
 2. You should see a one-time download progress line: "Downloading
-   the colorize model (about 25 MB, one-time) — X MB of ~25 MB
+   the colorize model (one-time) — X MB of ~64 MB
    (Y%)". After it finishes, the model is cached on your device.
-3. The result should appear with Details: engine
-   `browser-ai-colorize`, provider `deoldify-onnx`, model
-   `deoldify.quant.onnx`, and the note that the photo never left
-   your device.
+3. The result should appear with the neutral quality badge ("AI
+   Enhanced") and the note that the photo never left your device.
+   It must NOT name a provider, model, or setting (P0 privacy rule).
 4. Fallback check: block the model URL in devtools (or go offline
    before the first download) and run again — you should get an
    honest error offering server colorize, never a fake result.
 5. Known Tier A limits: output capped at 2048px; colour style/era do
-   not apply (DeOldify takes no style input); only plain Colorize
-   offers the browser path (Colorize + HD and Restore stay server,
-   because they need upscaling/face work the browser model cannot do).
+   not apply (DeOldify takes no style input); the browser path is
+   offered for plain Colorize and for black & white Restore (colorize
+   only — model face/scratch repair stays server, because the browser
+   model cannot do it). Colour Restore stays server/Enhance.
