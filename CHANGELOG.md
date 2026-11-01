@@ -641,3 +641,65 @@ redesign (not vibe-coded), following ui-ux-pro-max + frontend-design.
   rows, no secrets → `/admin/users/<any>` → change a test user's
   role (not your own) → `/admin/setup-2fa` still works and the
   action appears in `/admin/logs`.
+
+## Fix — large-photo upload failures, honest errors, colorize fallback, Admin link (this change)
+
+- ROOT CAUSE (proven live): a 12 MB upload died with HTTP 413
+  plain-text (serverless request limit ~4.5 MB vs the tool's 10 MB
+  promise). The client JSON-parsed the plain-text body, the parse
+  threw, and the fallback was the bare generic failure. Phone photos
+  routinely land between 4.5 MB and 10 MB, so this hit real photos.
+- CLIENT-SIDE PRE-UPLOAD COMPRESSION (`lib/browser/compress-image.ts`,
+  used by Enhance and server colorize): a file over ~4 MB is shrunk
+  in the browser (canvas, stepwise smaller dimensions + lower JPEG
+  quality) until the upload blob is under 4 MB, then that blob is
+  uploaded. Photos under 4 MB upload untouched. The UI says photos
+  over about 4 MB are compressed before upload, and shows one honest
+  note when a photo actually was compressed; the original file on the
+  device is never modified. The server's 10 MB check stays as a
+  backstop. The sizing loop is pure and unit-tested
+  (`tests/compress-image.test.ts`); the canvas path itself is covered
+  by the owner preview check with a real large phone photo.
+- HONEST ERRORS (no provider/model/setting names anywhere): 413 →
+  "That photo is too large to upload. Try a smaller photo, or let
+  the tool compress it and try again."; timeout/network → "The
+  connection broke before the result came back. Check your
+  connection and try again."; JSON server errors keep the server's
+  own message. The old bare generic failure string is gone.
+- MODE LABELS (plain words, no fake HD/colour claims): Enhance =
+  sharper and cleaner, same colours; Colorize = black-and-white →
+  colour; Restore + Colorize = repair + colour. A grayscale photo in
+  Enhance mode still nudges toward Colorize (hint, never a block;
+  "Colorize anyway" override unchanged). Free routing unchanged:
+  free stays Sharp standard + free browser colorize; HD 4x + face
+  enhance stay Premium GPU (needs the owner's keys, never invented).
+- OUTPUT-SIZE GUARD (`lib/ai/output-format.ts`, Enhance route only):
+  a PNG output over ~8 MB is served as JPEG instead (a noisy 3.1 MB
+  input once produced a 37 MB PNG). The client now names the
+  download from the real content type. Small outputs untouched;
+  conversion failure falls back to the original buffer.
+- COLORIZE FALLBACK (no dead ends, never a fake tint): server
+  colorize failure with a browser alternative now offers the free
+  browser colorize button, and auto-offers it for a too-large upload
+  too (browser colorize uploads nothing). Browser colorize failure
+  now offers server colorize as a button when the server is
+  available, otherwise free Enhance. When the server says "try
+  browser colorize" but the device cannot run it, the message says
+  so honestly and offers Enhance instead. Free users' primary
+  Colorize button was already the browser path; the browser model
+  itself (~64 MB, downloaded once and cached) could not be run in
+  the sandbox, so a real B&W photo check on the preview is required
+  (see SETUP.md §7).
+- ADMIN DISCOVERABILITY (gates unchanged): a visible "Admin" link
+  is now in the site footer (all visitors) and in the signed-in
+  header navigation. Link visibility is NOT access: /admin pages
+  and APIs still enforce admin role + fresh TOTP server-side,
+  fail-closed, exactly as before.
+- Verified: tsc clean, eslint clean on touched files, vitest
+  123/123 (11 new: compression sizing loop + output guard), build
+  EXIT=0, local `next start` checks (home 200 with footer Admin
+  link, /photo-enhancer 200, small upload POST /api/enhance 200),
+  Playwright public 9/9 + a11y-mobile 6/6 against the fresh local
+  build, leak scan clean. NEVER claimed preview-verified; merge to
+  master still needs explicit approval.
+- Owner preview checklist: see SETUP.md §7.

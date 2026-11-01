@@ -165,11 +165,12 @@ bottom; each row says what visitors see until it is done.
 3. **ONE database schema push** — what visitors see until done:
    "Logo history is not available yet: the database needs one
    schema update"; generations still work, they just are not saved.
-   - Coordination rule (do not run this twice): the PDF Tools Hub
-     agent owns the single push, but only if its schema matches
-     this repo's and a database URL is already present locally.
-     Otherwise run it once yourself from your machine with the
-     pooler connection string from step 2. This repo never pushes.
+   - Coordination rule (do not run this twice): the single push
+     comes from THIS repo's schema (ai-studio's is the superset —
+     it alone has the logo/photo tables), once, from your machine
+     with the pooler connection string from step 2. PDF Tools Hub
+     must never push afterward (a push from there would treat the
+     ai-studio-only tables as removed).
    - After the push, sign in and check `/account`: logo history,
      photo jobs, and export/delete work.
 4. **Admin allowlist + two-factor** — what the admin sees until
@@ -225,3 +226,44 @@ bottom; each row says what visitors see until it is done.
      Variables → add `NEXT_PUBLIC_CONTACT_EMAIL` (an address you
      monitor) to also offer the "open your email app" fallback on
      `/contact`. Redeploy.
+
+## 7. Owner preview checklist — large photos, colorize, Admin link (branch preview)
+
+Run these on the branch preview after merge approval (the preview
+is rebuilt on every push; use the newest deployment URL Vercel
+shows for the `full-upgrade` branch). None of these were verified
+by the builder — the sandbox has no internet for the browser model
+and no access past Deployment Protection.
+
+1. **Large phone photo enhances (the 413 fix):** open
+   `/photo-enhancer`, choose Enhance, and upload a real phone photo
+   over 4 MB (a 6–12 MB photo is the test). It must NOT show a
+   generic failure. You should see the note that the photo was
+   compressed in your browser for upload, and then the enhanced
+   result. A photo under 4 MB must upload with no compression note.
+2. **Forced failure shows the new plain message:** if an upload
+   still fails, the message must name the problem in plain words
+   (too large / connection broke), never a bare generic failure and
+   never a provider, model, or setting name.
+3. **Black-and-white photo actually comes back colored:** open
+   `/photo-enhancer`, choose Colorize, and upload a real
+   black-and-white photo. The free browser path is the primary free
+   route: the first run downloads the colorize model once (~64 MB)
+   and caches it on your device, so allow that download. The result
+   must be a genuinely colored photo — not a tint or sepia filter.
+   If browser colorize fails on your device, the error must offer
+   server colorize as a button (when the server is set up) or free
+   Enhance — never a dead end. If server colorize fails, it must
+   offer browser colorize. Server colorize itself needs the Space
+   (§1) or paid-GPU keys (§6, step 6) — until then, browser colorize
+   is the working free colorize route.
+4. **Mode labels are honest:** Enhance says sharper and cleaner
+   with the same colours (it must NOT claim to add colour); a
+   black-and-white photo in Enhance mode suggests Colorize.
+5. **Admin link is visible:** the site footer (every page) shows an
+   "Admin" link, and the header shows "Admin" when you are signed
+   in. Clicking it while signed out must bounce to sign-in; opening
+   `/admin` on live still needs your taps (Supabase env + redirect
+   + redeploy + the one schema push in §6 step 3 + TOTP setup) —
+   the link alone does not log anyone in, and the admin pages still
+   require admin role + fresh two-factor code.
