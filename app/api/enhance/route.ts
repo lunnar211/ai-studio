@@ -19,6 +19,7 @@ import { getSetting, isIpBlocked, logJob } from "@/lib/settings";
 import { checkPhotoCredits } from "@/lib/ai/credits";
 import { routeUpscale } from "@/lib/ai/router";
 import { sharpEnhance } from "@/lib/ai/adapters/sharp-local";
+import { capOutputSize } from "@/lib/ai/output-format";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -76,11 +77,15 @@ export async function POST(req: Request) {
     // FREE: local Sharp pipeline directly — unlimited, no GPU, no budget.
     if (userPlan === "FREE") {
       const out = await sharpEnhance(buf, 2048);
-      const meta = await sharp(out).metadata();
+      // Output-size guard: a noisy input can upscale into an enormous
+      // PNG (37 MB seen in production). Oversize PNGs are served as
+      // JPEG instead; the client renders either type.
+      const capped = await capOutputSize(out, "image/png");
+      const meta = await sharp(capped.buffer).metadata();
       await logJob({ userId, tool: "enhance", status: "SUCCESS", inputSummary: "enhance", costEstimate: 0 });
-      return new NextResponse(new Uint8Array(out), {
+      return new NextResponse(new Uint8Array(capped.buffer), {
         headers: {
-          "Content-Type": "image/png",
+          "Content-Type": capped.mime,
           "Cache-Control": "no-store",
           "X-Quality": "standard",
           "X-Output-Width": String(meta.width ?? 0),
@@ -108,9 +113,10 @@ export async function POST(req: Request) {
       inputSummary: "enhance",
       costEstimate: result.costUsd,
     });
-    return new NextResponse(new Uint8Array(result.buffer), {
+    const capped = await capOutputSize(result.buffer, "image/png");
+    return new NextResponse(new Uint8Array(capped.buffer), {
       headers: {
-        "Content-Type": "image/png",
+        "Content-Type": capped.mime,
         "Cache-Control": "no-store",
         // Neutral quality badge ONLY (P0): "ai" or "standard".
         "X-Quality": result.engine === "ai" ? "ai" : "standard",

@@ -12,9 +12,20 @@ import {
   formatModelProgress,
   type BrowserColorizeProgress,
 } from "@/lib/browser/deoldify";
+import { compressForUpload } from "@/lib/browser/compress-image";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const POLL_MS = 2500;
+
+// Honest, plain-words error strings. No provider, model, or setting
+// name ever appears in a user-facing message. The old bare generic
+// fallback is gone: a too-large upload, a broken connection, and a
+// server message are told apart.
+const TOO_LARGE_ERROR =
+  "That photo is too large to upload. Try a smaller photo, or let the tool compress it and try again.";
+const CONNECTION_ERROR =
+  "The connection broke before the result came back. Check your connection and try again.";
+const SERVER_UNEXPECTED_ERROR = "The server returned an unexpected response. Please try again.";
 
 type Mode = "enhance" | "colorize" | "restore";
 type Caps = {
@@ -52,9 +63,9 @@ type JobState = {
 };
 
 const MODE_CARDS: Array<{ value: Mode; title: string; desc: string }> = [
-  { value: "enhance", title: "Enhance", desc: "Sharper, larger version of your photo. Works on any photo." },
-  { value: "colorize", title: "Colorize", desc: "Adds estimated colours to a black & white photo, then upscales it." },
-  { value: "restore", title: "Restore + Colorize", desc: "Repairs faces and scratches first, then colorizes (black & white) and upscales." },
+  { value: "enhance", title: "Enhance", desc: "Sharper and cleaner, same colours. Works on any photo — it does not add colour." },
+  { value: "colorize", title: "Colorize", desc: "Black-and-white → colour, with estimated colours, then upscaled." },
+  { value: "restore", title: "Restore + Colorize", desc: "Repairs faces and scratches first, then colorizes black-and-white photos and upscales." },
 ];
 
 const STAGE_LABELS: Record<string, string> = {
@@ -144,6 +155,13 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   // Free alternative offered by the server when a server job cannot
   // start (browser colorize, or free Enhance for colour restore).
   const [freeAlternative, setFreeAlternative] = useState<"browser" | "enhance" | null>(null);
+  // Offered when browser colorize fails but server colorize is
+  // available: the other path, never a dead end.
+  const [offerServer, setOfferServer] = useState(false);
+  // True when the uploaded file was compressed in the browser before
+  // upload (large phone photos). Shown as one honest note; the
+  // original file on the device is never modified.
+  const [uploadCompressed, setUploadCompressed] = useState(false);
   // Advanced (colorize) options.
   const [style, setStyle] = useState("natural");
   const [era, setEra] = useState("");
@@ -268,6 +286,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setOfferServer(false);
+    setUploadCompressed(false);
     setFreeAlternative(null);
     setColorizeAnyway(false);
     setBrowserProgress("");
@@ -294,18 +314,29 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     setGrayChecking(false);
   }
 
-  function startEnhance() {
+  async function startEnhance() {
     if (!file) return;
     setError("");
     setSuggestEnhance(false);
+    setOfferServer(false);
+    setUploadCompressed(false);
     setLoading(true);
     setProgress(0);
+    // Pre-upload compression (the 413 fix): a photo over ~4 MB is
+    // shrunk in the browser until the upload blob is under 4 MB, so
+    // it fits the serverless request limit. Small photos upload
+    // untouched. The server's 10 MB check stays as a backstop.
+    const prepared = await compressForUpload(file);
+    setUploadCompressed(prepared.compressed);
     const form = new FormData();
-    form.append("image", file);
+    form.append("image", prepared.file);
     if (token) form.append("turnstileToken", token);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/enhance", true);
     xhr.responseType = "blob";
+    // Server work is capped at 60s; a hung request must surface as a
+    // connection failure, not spin forever.
+    xhr.timeout = 90000;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
     };
@@ -316,18 +347,25 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         const eng = xhr.getResponseHeader("X-Quality") || "";
         const w = xhr.getResponseHeader("X-Output-Width") || "";
         const h = xhr.getResponseHeader("X-Output-Height") || "";
+        const contentType = xhr.getResponseHeader("Content-Type") || "";
+        const ext = contentType.includes("jpeg") ? "jpg" : contentType.includes("webp") ? "webp" : "png";
         setQuality(eng === "ai" ? "ai" : "standard");
         setOutSize(w && h ? `${w} × ${h}px` : "");
-        setAfterName("enhanced.png");
+        setAfterName(`enhanced.${ext}`);
         setAfterUrl(URL.createObjectURL(xhr.response as Blob));
+      } else if (xhr.status === 413) {
+        // Platform size limit, returned as plain text: never parse it
+        // as JSON, never show the old bare generic failure.
+        setError(TOO_LARGE_ERROR);
       } else {
         const reader = new FileReader();
         reader.onload = () => {
           try {
             const data = JSON.parse(String(reader.result)) as { error?: string };
-            setError(data.error || "Enhancement failed. Please try again.");
+            // JSON server errors keep the server's own message.
+            setError(data.error || SERVER_UNEXPECTED_ERROR);
           } catch {
-            setError("Enhancement failed. Please try again.");
+            setError(SERVER_UNEXPECTED_ERROR);
           }
         };
         reader.readAsText(xhr.response as Blob);
@@ -336,7 +374,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     xhr.onerror = () => {
       setLoading(false);
       setProgress(null);
-      setError("Could not reach the server. Check your connection and try again.");
+      setError(CONNECTION_ERROR);
+    };
+    xhr.ontimeout = () => {
+      setLoading(false);
+      setProgress(null);
+      setError(CONNECTION_ERROR);
     };
     xhr.send(form);
   }
@@ -347,6 +390,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setOfferServer(false);
+    setUploadCompressed(false);
     setFreeAlternative(null);
     setBrowserProgress("");
     setSuggestEnhance(false);
@@ -354,8 +399,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     setResultMeta(null);
     setLoading(true);
     setJobStage("queued");
+    // Same pre-upload compression as Enhance: server colorize jobs
+    // upload through the same size-limited request path.
+    const prepared = await compressForUpload(file);
+    setUploadCompressed(prepared.compressed);
     const form = new FormData();
-    form.append("image", file);
+    form.append("image", prepared.file);
     form.append("mode", mode);
     form.append("colorizeAnyway", colorizeAnyway ? "true" : "false");
     form.append("style", style);
@@ -372,17 +421,41 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       if (!res.ok || !data?.jobId) {
         setLoading(false);
         setJobStage(null);
-        setError(data?.error ?? "Could not start that job. Please try again.");
-        if (data?.suggestMode === "enhance") setSuggestEnhance(true);
         // No dead end: when the server cannot start, offer the free
         // path that fits this photo (browser colorize, or free
         // Enhance for colour restore) instead of a red dead end.
+        // Browser colorize needs no upload, so it is also the right
+        // fallback for a too-large upload.
+        const colorizableHere = mode === "colorize" || (mode === "restore" && (grayKind === "grayscale" || colorizeAnyway));
+        if (res.status === 413) {
+          setError(TOO_LARGE_ERROR);
+          if (colorizableHere && browserSupported) setOfferBrowser(true);
+          return;
+        }
+        if (data?.suggestMode === "enhance") setSuggestEnhance(true);
         if (data?.freeAlternative === "browser") {
-          if (mode === "colorize" || (mode === "restore" && (grayKind === "grayscale" || colorizeAnyway))) setOfferBrowser(true);
+          if (colorizableHere && browserSupported) {
+            setError(data.error ?? "Could not start that job. Please try again.");
+            setOfferBrowser(true);
+          } else if (colorizableHere && !browserSupported) {
+            // The server's "try browser colorize" advice would be a
+            // dead end on a device that cannot run it — say so and
+            // offer Enhance instead.
+            setError("Server colorize is not set up right now, and browser colorize is not supported on this device. Enhance can still sharpen and upscale this photo.");
+            setFreeAlternative("enhance");
+          } else {
+            setError(data.error ?? "Could not start that job. Please try again.");
+            setFreeAlternative("enhance");
+          }
         } else if (data?.freeAlternative === "enhance") {
+          setError(data.error ?? "Could not start that job. Please try again.");
           setFreeAlternative("enhance");
-        } else if (mode === "colorize" && browserSupported) {
-          setOfferBrowser(true);
+        } else if (data?.error) {
+          setError(data.error);
+          if (colorizableHere && browserSupported) setOfferBrowser(true);
+        } else {
+          setError(SERVER_UNEXPECTED_ERROR);
+          if (colorizableHere && browserSupported) setOfferBrowser(true);
         }
         return;
       }
@@ -395,7 +468,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     } catch {
       setLoading(false);
       setJobStage(null);
-      setError("Could not reach the server. Check your connection and try again.");
+      setError(CONNECTION_ERROR);
     }
   }
 
@@ -425,6 +498,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setOfferServer(false);
     setFreeAlternative(null);
     setSuggestEnhance(false);
     setAfterUrl("");
@@ -459,7 +533,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     } catch {
       setLoading(false);
       setBrowserProgress("");
-      setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it). Try server colorize instead.");
+      // Never a dead end: offer the other path as a button, not just
+      // words. Server colorize when it is available, otherwise free
+      // Enhance (sharpen + upscale, honestly not colour).
+      setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it).");
+      if (colorizeAvailable) setOfferServer(true);
+      else setFreeAlternative("enhance");
     }
   }
 
@@ -668,10 +747,13 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         >
           <Upload size={28} className="text-brand" aria-hidden="true" />
           <p className="font-semibold">{file ? file.name : "Drop your photo here, or choose a file"}</p>
-          <p className="text-sm text-muted-fg dark:text-slate-400">JPG, PNG or WebP, up to 10 MB. Files are deleted after processing.</p>
+          <p className="text-sm text-muted-fg dark:text-slate-400">JPG, PNG or WebP, up to 10 MB. Photos over about 4 MB are compressed in your browser before upload, so large phone photos still work. Files are deleted after processing.</p>
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose an image file" onChange={(e) => pick(e.target.files?.[0])} />
         </div>
 
+        {uploadCompressed && (
+          <div className="mt-3"><Alert kind="info">This photo was compressed in your browser for upload so it stays under the upload size limit. Your original file is unchanged.</Alert></div>
+        )}
         {grayChecking && <p role="status" className="mt-3 text-sm text-muted-fg dark:text-slate-400">Checking whether this photo is black & white…</p>}
         {showGrayscaleHint && (
           <div className="mt-3"><Alert kind="info">This looks like it already has colour, so colorize may change its colours. If it is actually a faded or sepia old photo, you can still colorize it.</Alert>
@@ -700,6 +782,9 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
             {suggestEnhance && <Button type="button" variant="secondary" className="mt-2" onClick={() => setMode("enhance")}>Switch to Enhance only</Button>}
             {offerBrowser && (
               <Button type="button" variant="secondary" className="mt-2" onClick={startBrowserColorize}>Try free browser colorize instead (no daily limit, photo stays on this device)</Button>
+            )}
+            {offerServer && (
+              <Button type="button" variant="secondary" className="mt-2" onClick={startColorizeJob}>Try server colorize instead</Button>
             )}
             {freeAlternative === "enhance" && (
               <Button type="button" variant="secondary" className="mt-2" onClick={startEnhance}>Enhance free instead (sharpen + upscale, no daily limit)</Button>
