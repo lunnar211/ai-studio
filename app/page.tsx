@@ -5,7 +5,7 @@ import { LIMITS } from "@/lib/limits";
 import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
-  title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
+  title: { absolute: "AI Studio — Free AI Logo Generator and Photo Enhancer" },
   description: "Generate an original logo from a short description, or enhance a photo in seconds. Free tier, no account needed, files deleted after processing.",
   openGraph: {
     title: "AI Studio — Free AI Logo Generator and Photo Enhancer",

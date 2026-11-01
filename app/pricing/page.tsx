@@ -5,7 +5,7 @@ import { formatPaddlePrice, getPaddlePriceDisplay, paddleConfigured } from "@/li
 import { CheckoutButton } from "@/app/account/AccountActions";
 
 export const metadata: Metadata = {
-  title: "Pricing — AI Studio",
+  title: "Pricing",
   description: "AI Studio pricing: free tier with logo requests and photo credits per day, and Premium with higher limits, HD export and face enhance, sold through Paddle. The Premium price comes from Paddle, never invented.",
   openGraph: {
     title: "Pricing | AI Studio",

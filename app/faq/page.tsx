@@ -3,7 +3,7 @@ import Link from "next/link";
 import { LIMITS } from "@/lib/limits";
 
 export const metadata: Metadata = {
-  title: "FAQ — AI Studio",
+  title: "FAQ",
   description: "Frequently asked questions about AI Studio: free limits, logo downloads, photo enhancement, privacy, and Premium checkout through Paddle.",
   openGraph: {
     title: "FAQ | AI Studio",

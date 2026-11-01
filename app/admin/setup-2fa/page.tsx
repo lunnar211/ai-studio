@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin-page";
 import { SetupForm } from "./SetupForm";
 
-export const metadata: Metadata = { title: "Set up two-factor authentication — AI Studio", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Set up two-factor authentication", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function Setup2faPage() {

@@ -18,6 +18,10 @@ export function Footer() {
             {[
               ["/logo-generator", "Logo Generator"],
               ["/photo-enhancer", "Photo Enhancer"],
+              ["/colorize-black-and-white-photo", "Colorize Black-and-White Photos"],
+              ["/restore-old-photos", "Restore Old Photos"],
+              ["/photo-upscaler", "Photo Upscaler"],
+              ["/ai-logo-maker", "AI Logo Maker"],
               ["/pricing", "Pricing"],
               ["/faq", "FAQ"],
               ["/about", "About"],

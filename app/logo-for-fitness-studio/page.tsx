@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Logo for a Fitness Studio — AI Studio",
+  title: "Logo for a Fitness Studio",
   description: "Design a fitness studio logo in seconds: bold shapes, high-contrast colours, and a mark that works on shirts and signs. Free, original SVG logos from AI Studio.",
   openGraph: {
     title: "Logo for a Fitness Studio | AI Studio",

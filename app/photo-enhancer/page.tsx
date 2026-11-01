@@ -3,18 +3,18 @@ import { EnhancerTool } from "./EnhancerTool";
 import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
-  title: "AI Photo Enhancer — Sharpen and Upscale Photos",
-  description: "Upload a JPG, PNG or WebP photo up to 10 MB and get a sharper, upscaled photo back in PNG, JPG, or WebP. Before/after slider included. Results are labelled AI or standard quality honestly.",
+  title: "AI Photo Enhancer — Colorize, Restore and Upscale Old Photos",
+  description: "Colorize a black-and-white photo, restore an old damaged photo, or sharpen and upscale any photo up to 10 MB (JPG, PNG, WebP). Free tier, before/after slider, honest AI or standard-quality label. Colours on colorized photos are estimates.",
   openGraph: {
     title: "AI Photo Enhancer | AI Studio",
-    description: "Upload a photo and get a sharper, upscaled photo back in PNG, JPG, or WebP, with an honest AI or standard-quality label.",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio photo enhancer" }],
+    description: "Colorize black-and-white photos, restore old photos, and upscale to HD. Free tier with an honest AI or standard-quality label.",
+    images: [{ url: "/og-photo.jpg", width: 1200, height: 630, alt: "AI Studio photo enhancer — colorize and restore old photos" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AI Photo Enhancer | AI Studio",
-    description: "Upload a photo and get a sharper, upscaled photo back in PNG, JPG, or WebP, with an honest AI or standard-quality label.",
-    images: ["/og.jpg"],
+    description: "Colorize black-and-white photos, restore old photos, and upscale to HD. Free tier with an honest AI or standard-quality label.",
+    images: ["/og-photo.jpg"],
   },
 };
 
