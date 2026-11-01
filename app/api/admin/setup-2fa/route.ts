@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   const { session, error } = await requireAdmin(req, ["SUPER", "SUPPORT", "FINANCE"], { skipTotp: true });
   if (error) return error;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
+  if (!process.env.TOTP_SECRET) return NextResponse.json({ error: "Two-factor is not configured." }, { status: 503 });
   const user = await prisma.user.findUnique({ where: { id: session.id } });
   if (!user?.email) return NextResponse.json({ error: "Account not found." }, { status: 404 });
   if (user.totpEnabled) return NextResponse.json({ enabled: true });
@@ -29,6 +30,7 @@ export async function GET(req: Request) {
   const { session, error } = await requireAdmin(req, ["SUPER", "SUPPORT", "FINANCE"], { skipTotp: true });
   if (error) return error;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
+  if (!process.env.TOTP_SECRET) return NextResponse.json({ error: "Two-factor is not configured." }, { status: 503 });
   const user = await prisma.user.findUnique({ where: { id: session.id } });
   return NextResponse.json({ enabled: Boolean(user?.totpEnabled), hasSecret: Boolean(user?.totpSecretEncrypted) });
 }

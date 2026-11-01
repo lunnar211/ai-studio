@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { supabaseSignOut } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/field";
 
@@ -57,6 +58,7 @@ export function CheckoutButton() {
 }
 
 export function DeleteButton() {
+  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   async function run() {
@@ -66,7 +68,9 @@ export function DeleteButton() {
       setError("Delete failed. Please try again or contact support.");
       return;
     }
-    await signOut({ callbackUrl: "/" });
+    await supabaseSignOut();
+    router.push("/");
+    router.refresh();
   }
   if (!confirming) {
     return (

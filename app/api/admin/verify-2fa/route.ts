@@ -9,12 +9,13 @@ import { signTotpCookie, TOTP_COOKIE } from "@/lib/totp-cookie";
 export const dynamic = "force-dynamic";
 
 // Verifies a TOTP code. On success: enables TOTP if it was only set up,
-// and sets the signed 12-hour second-factor cookie that middleware and the
-// admin API guard accept.
+// and sets the signed 12-hour second-factor cookie that the admin page
+// guard and admin API guard verify server-side on every request.
 export async function POST(req: Request) {
   const { session, error } = await requireAdmin(req, ["SUPER", "SUPPORT", "FINANCE"], { skipTotp: true });
   if (error) return error;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
+  if (!process.env.TOTP_SECRET) return NextResponse.json({ error: "Two-factor is not configured." }, { status: 503 });
   const parsed = z.object({ code: z.string().regex(/^\d{6}$/) }).safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Enter the 6-digit code." }, { status: 400 });
   const user = await prisma.user.findUnique({ where: { id: session.id } });
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     await prisma.user.update({ where: { id: session.id }, data: { totpEnabled: true } });
   }
   const jar = await cookies();
-  jar.set(TOTP_COOKIE, await signTotpCookie(session.id, process.env.AUTH_SECRET || ""), {
+  jar.set(TOTP_COOKIE, await signTotpCookie(session.id, process.env.TOTP_SECRET || ""), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

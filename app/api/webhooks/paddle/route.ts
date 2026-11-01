@@ -53,8 +53,31 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = event.data as Record<string, any>;
     const customData = (data.customData || data.custom_data || {}) as Record<string, unknown>;
+    // Customer mapping key: Supabase id first (the stable identity since
+    // the Supabase Auth rework), then the legacy Prisma userId, then
+    // email. Never trust a bare customerId alone to pick a user.
+    async function resolveUserId(): Promise<string | null> {
+      // Narrowed for TS: the route already returned 503 when prisma is
+      // null, but TS cannot prove that inside this closure.
+      if (!prisma) return null;
+      if (typeof customData.supabaseId === "string") {
+        const bySupabase = await prisma.user
+          .findUnique({ where: { supabaseId: customData.supabaseId } })
+          .catch(() => null);
+        if (bySupabase) return bySupabase.id;
+      }
+      if (typeof customData.userId === "string") {
+        const byPrisma = await prisma.user.findUnique({ where: { id: customData.userId } }).catch(() => null);
+        if (byPrisma) return byPrisma.id;
+      }
+      if (typeof customData.supabaseEmail === "string") {
+        const byEmail = await prisma.user.findUnique({ where: { email: customData.supabaseEmail } }).catch(() => null);
+        if (byEmail) return byEmail.id;
+      }
+      return null;
+    }
     if (event.eventType === "transaction.completed") {
-      const userId = typeof customData.userId === "string" ? customData.userId : null;
+      const userId = await resolveUserId();
       if (userId) {
         const totals = data.details?.totals || {};
         const amount = parseInt(String(totals.total ?? "0"), 10) || 0;
@@ -79,7 +102,7 @@ export async function POST(req: Request) {
       event.eventType === "subscription.canceled" ||
       event.eventType === "subscription.cancelled"
     ) {
-      let userId = typeof customData.userId === "string" ? customData.userId : null;
+      let userId = await resolveUserId();
       if (!userId) {
         const bySub = await prisma.subscription.findUnique({ where: { subscriptionId: String(data.id) } });
         userId = bySub?.userId ?? null;

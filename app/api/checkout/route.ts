@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ageGate } from "@/lib/age";
 import { getPaddle, paddleConfigured } from "@/lib/paddle";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 // Creates a Paddle hosted-checkout transaction for the Premium plan.
 // Auth + age 18+ required. No card data touches this site.
 export async function POST() {
-  const session = await auth().catch(() => null);
-  const userId = (session?.user as unknown as { id?: string } | undefined)?.id;
+  const session = await getSessionSafe().catch(() => null);
+  const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   if (!prisma) return NextResponse.json({ error: "Checkout is not configured yet." }, { status: 503 });
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -29,7 +29,9 @@ export async function POST() {
   try {
     const tx = await paddle.transactions.create({
       items: [{ priceId, quantity: 1 }],
-      customData: { userId },
+      // Paddle mapping key: Supabase id/email first (the stable identity);
+      // Prisma userId kept as fallback for webhooks predating the rework.
+      customData: { userId, supabaseId: user.supabaseId ?? undefined, supabaseEmail: user.email },
     });
     const url = (tx as unknown as { checkout?: { url?: string } }).checkout?.url;
     if (!url) return NextResponse.json({ error: "Checkout could not be started. Please try again." }, { status: 502 });

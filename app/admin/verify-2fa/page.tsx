@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Verify two-factor authentication —
 export const dynamic = "force-dynamic";
 
 export default async function Verify2faPage() {
-  await requireAdminPage(["SUPER", "SUPPORT", "FINANCE"]);
+  await requireAdminPage(["SUPER", "SUPPORT", "FINANCE"], { skipTotp: true });
   return (
     <div className="mx-auto max-w-md">
       <h2 className="text-2xl font-bold">Two-factor verification</h2>

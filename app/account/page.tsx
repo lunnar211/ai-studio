@@ -15,10 +15,20 @@ export const dynamic = "force-dynamic";
 export default async function AccountPage() {
   const session = await getSessionSafe();
   if (!session?.user) redirect("/signin");
-  const user = session.user as unknown as {
-    id: string; name?: string | null; email?: string | null; image?: string | null;
-    plan?: string; role?: string;
-  };
+  const user = session.user;
+  if (user.status === "SUSPENDED") {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="font-display text-4xl font-bold italic">My account</h1>
+        <p className="mt-3 text-muted-fg dark:text-slate-300">
+          This account is suspended. Contact support if you think this is a mistake.
+        </p>
+      </div>
+    );
+  }
+  // Age confirmation gates account features (middleware cannot check this:
+  // it lives in Prisma). Unconfirmed users complete onboarding first.
+  if (!user.ageConfirmed) redirect("/onboarding");
 
   if (!prisma) {
     return (

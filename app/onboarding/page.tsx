@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingPage() {
   const session = await getSessionSafe();
   if (!session?.user) redirect("/signin");
-  if ((session.user as unknown as { ageConfirmed?: boolean }).ageConfirmed) redirect("/account");
+  if (session.user.ageConfirmed) redirect("/account");
+  if (session.user.status === "SUSPENDED") redirect("/signin?error=suspended");
   return (
     <div className="mx-auto max-w-md">
       <h1 className="font-display text-4xl font-bold italic">One quick check</h1>

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ageGate, parseDob } from "@/lib/age";
 
@@ -12,8 +12,9 @@ export async function completeOnboarding(formData: FormData): Promise<{
   error?: string;
   blocked?: "UNDER_13" | "UNDER_16";
 }> {
-  const session = await auth().catch(() => null);
-  const userId = (session?.user as unknown as { id?: string } | undefined)?.id;
+  const session = await getSessionSafe().catch(() => null);
+  const userId = session?.user?.id;
+  if (session?.user?.status === "SUSPENDED") return { ok: false, error: "This account is suspended." };
   if (!userId || !prisma) return { ok: false, error: "Sign-in is not configured." };
   const dobRaw = String(formData.get("dob") || "");
   const confirm = formData.get("confirm") === "on";

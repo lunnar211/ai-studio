@@ -1,10 +1,16 @@
 // AI Studio + PDF Tools Hub SHARED schema (Prisma + PostgreSQL).
-// This file MUST stay identical in both sites. Do not rename fields here
-// without changing the sister site in the same release.
-// Shared database: one Neon project, DATABASE_URL pasted into both Vercel
-// projects. AUTH_SECRET is DIFFERENT per site (never shared).
-// Session strategy is JWT (see lib/auth.ts); the Session table below is
-// part of the standard Auth.js adapter tables and is kept for schema parity.
+// This file MUST stay identical in both sites (except the documented
+// supabaseId addition, which the sister site adopts in the same release).
+// Do not rename models, tables, columns, or primary keys here.
+// Shared database: the owner's existing Supabase Postgres project
+// ("LeadForge"); the Supabase pooler DATABASE_URL is pasted into both
+// sites' Vercel projects. Auth is Supabase Auth (Google provider), not
+// Auth.js: User.supabaseId maps a Supabase Auth user to its Prisma row.
+// The Account / Session / VerificationToken tables below are the legacy
+// Auth.js adapter tables. They are RETAINED, unused, for shared-database
+// parity with the sister site — dropping them would break the shared
+// schema push. No code reads or writes them anymore.
+// TOTP_SECRET is DIFFERENT per site (never shared).
 
 generator client {
   provider = "prisma-client-js"
@@ -43,6 +49,10 @@ enum JobStatus {
 
 model User {
   id                  String         @id @default(cuid())
+  // Supabase Auth user id (auth.users.id). The ONLY schema change of the
+  // Supabase Auth rework: added, nullable + unique so pre-existing rows
+  // (none live yet) and email-fallback mapping keep working.
+  supabaseId          String?        @unique
   email               String         @unique
   name                String?
   image               String?

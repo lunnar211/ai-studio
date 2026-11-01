@@ -9,10 +9,10 @@ unless the evidence column says how it was checked.
 
 | Rule | Status | Evidence / file |
 | --- | --- | --- |
-| Google-only sign-in, minimal scopes openid/email/profile | DONE | `lib/auth.ts` (Google provider, explicit scope params) |
-| Credentials via env only, never hardcoded | DONE | `lib/auth.ts` reads `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`AUTH_SECRET`; secrets grep clean |
-| App name, logo, privacy + terms URLs, authorized domains in Cloud Console | NEEDS-OWNER-ACTION | Owner creates the Google Cloud OAuth client, adds redirect URI `https://ai-studio-sandy-sigma.vercel.app/api/auth/callback/google` (and the sister site's URI in the same project if sharing), sets app name/logo, links `/privacy` + `/terms`. |
-| One project can serve both sites (both redirect URIs) | DONE (documented) | README architecture section; separate AUTH_SECRET per site |
+| Google-only sign-in, minimal scopes openid/email/profile | DONE | Supabase Auth Google provider (reused existing project config); `app/signin/SignInButton.tsx` calls `signInWithOAuth({provider:"google"})`, callback at `app/auth/callback/route.ts` |
+| Credentials via env only, never hardcoded | DONE | Supabase URL/anon key via env only (placeholders in .env.example); `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`AUTH_SECRET` REMOVED in the 2026-11-01 rework; secrets grep clean; no service-role key anywhere |
+| App name, logo, privacy + terms URLs, authorized domains in Cloud Console | NEEDS-OWNER-ACTION | REUSED existing Supabase project Google provider — no new Cloud client. Owner adds redirect URI `https://ai-studio-sandy-sigma.vercel.app/auth/callback` in Supabase Authentication > URL Configuration (and the sister site's URI in the same project if sharing); app name/logo + `/privacy` + `/terms` links are the existing provider's settings. |
+| One project can serve both sites (both redirect URIs) | DONE (documented) | README architecture section; separate TOTP_SECRET per site; both sites use their own /auth/callback redirect URI |
 | HONEST CAVEAT: full OAuth verification needs a verified domain the owner controls; a vercel.app subdomain cannot be verified. OAuth works in Testing mode immediately (test users only); production verification needs a custom domain. Verification is NOT claimed done. | NEEDS-OWNER-ACTION | README + this file |
 
 ## AdSense program policies
@@ -47,7 +47,7 @@ unless the evidence column says how it was checked.
 
 | Rule | Status | Evidence / file |
 | --- | --- | --- |
-| Data rights (export + delete) offered | DONE | `/account` export/delete; `app/api/account/*` |
+| Data rights (export + delete) offered | DONE (with honest limit) | `/account` export/delete; `app/api/account/*`. LIMIT: Prisma row + app data deleted by the app; the Supabase Auth identity itself needs a Supabase dashboard deletion (anon key cannot delete auth users; no service-role key introduced) |
 | Data minimization (hashed IPs only, no file contents, no card data, 90-day job retention) | DONE | `lib/ip-hash.ts`, `prisma/schema.prisma`, `app/api/admin/cleanup/route.ts` |
 | Stated accurately, not as legal advice | DONE | `/privacy` and `/terms` carry "not legal advice" wording |
 | Nepal's Privacy Act 2018 sets no fixed digital-consent age, so 16 is the conservative alignment (GDPR default); under-13 blocked entirely; 18+ for paid (contractual capacity) | DONE | `lib/age.ts`, `/terms`, `/onboarding` |
@@ -63,10 +63,18 @@ unless the evidence column says how it was checked.
 
 ## Shared database + SSO limit (honest)
 
-- Shared: DATABASE_URL (same Neon project) — the user row is shared
-  between AI Studio and PDF Tools Hub.
-- NOT shared: AUTH_SECRET (different per site; sharing one would let one
-  site forge the other's tokens).
+- Shared: DATABASE_URL (same Supabase Postgres project, pooler string) —
+  the user row is shared between AI Studio and PDF Tools Hub. Schema
+  change of the 2026-11-01 rework: ONLY `User.supabaseId String? @unique`
+  added; legacy Auth.js Account/Session/VerificationToken tables retained
+  unused for shared-DB parity (do not drop them).
+- NOT shared: TOTP_SECRET (different per site; sharing one would let one
+  site forge the other's TOTP cookies/secrets).
+- Supabase Auth identity deletion (account delete + under-13): the Prisma
+  row and app data are deleted by the app, but the Supabase Auth identity
+  itself needs a Supabase dashboard deletion (the anon key cannot delete
+  auth users; no service-role key is introduced — dashboard deletion is
+  the least-privilege path). Owner step on any delete request.
 - SSO limit: true one-login SSO across two different vercel.app domains
   is NOT possible (cookies cannot cross domains). This build gives a
   shared DB + per-site sessions. SSO-on-a-shared-domain is a later step

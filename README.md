@@ -24,10 +24,10 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 | `POST /api/enhance` | Multipart image, magic-byte validated JPG/PNG/WebP, max 10 MB. Replicate `nightmareai/real-esrgan` when `REPLICATE_API_TOKEN` is set and succeeds (labelled `ai`); otherwise Sharp 2x lanczos3 + sharpen + normalize (labelled `sharp`, never claimed as AI). Replicate output URLs are fetched only from `replicate.delivery` (SSRF allowlist). |
 | `POST /api/logo/generate` (updated) | Server-side retry up to 3 attempts on unusable model output (never a fake logo); signed-in users get SiteSetting quotas counted from Job rows; guests keep the 10/day per-IP limit; blocked IPs (hash lookup) and suspended accounts are refused. |
 | `POST /api/checkout` | Auth + age-18+ required. Creates a Paddle hosted-checkout transaction and returns its URL. No card data touches this site. |
-| `POST /api/webhooks/paddle` | Verifies the signature with the Paddle SDK, idempotent via `WebhookEvent.eventId` (duplicate → 200 ignored). Handles `transaction.completed` + `subscription.created/updated/cancelled` → upserts Subscription/Payment and sets `User.plan`. |
+| `POST /api/webhooks/paddle` | Verifies the signature with the Paddle SDK, idempotent via `WebhookEvent.eventId` (duplicate → 200 ignored). Handles `transaction.completed` + `subscription.created/updated/cancelled` → upserts Subscription/Payment and sets `User.plan`. Customer mapping is keyed on the Supabase user id/email first (Prisma id as legacy fallback). |
 | `GET /api/account/export`, `POST /api/account/delete` | The caller's own data only (id from session, never from params). Export omits the TOTP secret. |
 | `POST /api/contact` | Stores contact-form messages in the admin support inbox (when the DB is configured). No SMTP is configured: replies are recorded in the DB and sent via mailto. |
-| `/api/admin/*` | Admin mutations, each enforcing role + TOTP (defense in depth behind middleware). Every admin action writes an AuditLog row. |
+| `/api/admin/*` | Admin mutations, each enforcing role + TOTP server-side (defense in depth behind the session proxy). Every admin action writes an AuditLog row. |
 
 ## Honest launch states
 
@@ -37,6 +37,7 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 - **No Turnstile keys** → tools work without captcha. Set both keys to enable bot protection.
 - **No Upstash keys** → in-memory per-IP rate limiting (10/day per AI tool). It does not persist
   across serverless instances; set Upstash keys for a distributed limiter.
+- **No Supabase env vars** → the sign-in button is replaced by an honest “not configured” message and `/auth/callback` redirects to `/signin`; tools still work as guests and the build still passes.
 - **No Paddle env vars** → checkout returns an honest “not configured” error and renders no
   actionable payment button. No payment details are collected anywhere on this site.
 - **No AdSense publisher ID** → the ad slot renders nothing. Never enable ads before approval.
@@ -53,9 +54,9 @@ vars in Vercel.
 - `REPLICATE_API_TOKEN` (server-only, optional — enables AI upscaling)
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` (optional — distributed rate limiting)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` (optional — bot protection)
-- `DATABASE_URL` (Neon Postgres, shared with PDF Tools Hub — same value in both sites' Vercel projects)
-- `AUTH_SECRET` (per-site secret — MUST DIFFER between sites; rotating it invalidates sessions and requires TOTP re-enrollment, since TOTP secrets are encrypted with a key derived from it)
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google OAuth; one Cloud project can serve both sites via both redirect URIs)
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (existing Supabase project “LeadForge”, Google provider already configured there — do NOT create a new Google Cloud OAuth client; `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `AUTH_SECRET` belonged to the removed Auth.js setup and must not be added)
+- `DATABASE_URL` (Supabase Postgres pooler string, shared with PDF Tools Hub — same value in both sites' Vercel projects; schema pushed ONCE from either repo)
+- `TOTP_SECRET` (per-site server-only secret — MUST DIFFER between sites; rotating it requires TOTP re-enrollment, since TOTP secrets are encrypted with a key derived from it. There is deliberately NO `SUPABASE_SERVICE_ROLE_KEY`: the anon key covers every app path)
 - `ADMIN_EMAILS` (comma-separated allowlist; first login with an allowlisted email becomes ADMIN + SUPER; no passwords, no fallback login, ever)
 - `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_PRICE_ID`, `PADDLE_ENV` (`sandbox` first, `production` only after sandbox testing)
 - `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SISTER_SITE_URL` (default `https://pdf-tools-hub.vercel.app`),
@@ -65,27 +66,44 @@ vars in Vercel.
 
 ## Architecture: auth, shared DB, SSO limit
 
-- Auth: Auth.js v5, Google-only, JWT sessions. The JWT carries role,
-  adminRole, plan and totpVerifiedAt so Edge middleware can read them
-  without a DB round-trip. Middleware is deliberately kept as
-  `middleware.ts` (Edge): in Next.js 16 the `proxy` convention runs on
-  Node.js, not Edge, so renaming it would break the Edge requirement.
-  The build's middleware-deprecation warning is expected.
-- Shared database: one Neon Postgres project, `DATABASE_URL` pasted into
-  both AI Studio and PDF Tools Hub. `prisma/schema.prisma` MUST stay
-  identical in both sites. Build runs `prisma generate` and succeeds with
-  `DATABASE_URL` unset; without a DB the site runs guest-only (tools keep
-  working, auth/admin show "not configured").
+- Auth: Supabase Auth, Google-only, on the owner's EXISTING Supabase
+  project "LeadForge" (ref omnqidmauvloedscncir) — its already-configured
+  Google provider is reused; no new Google Cloud OAuth client exists.
+  Sessions are Supabase cookies, refreshed by `proxy.ts` (the Next.js 16
+  convention; `middleware.ts` is deprecated in 16.4). The proxy NEVER
+  touches Prisma: it only enforces "signed in" for /admin, /account and
+  /onboarding. Roles, suspension, age confirmation and TOTP live in
+  Prisma and are enforced server-side by lib/admin-page.ts,
+  lib/admin-guard.ts and app/account/page.tsx on every request.
+  First login upserts the Prisma User row by `supabaseId`, then email;
+  the schema change for this rework is ONLY that one nullable unique
+  column. Sign-in goes through the site's own /auth/callback route,
+  which exchanges the code and validates `next` (relative paths only —
+  no open redirect). TOTP: the existing custom implementation is KEPT
+  (see Security section) — Supabase MFA was not adopted because it
+  would add a second, parallel second-factor store and enrolment flow
+  for admins who already have the working TOTP path, with no security
+  gain for a single-admin panel.
+- Shared database: the same Supabase Postgres project, `DATABASE_URL`
+  (pooler string) pasted into both AI Studio and PDF Tools Hub.
+  `prisma/schema.prisma` MUST stay database-compatible in both sites
+  (the legacy Auth.js Account/Session/VerificationToken tables are
+  retained unused for parity — do not drop them). Build runs
+  `prisma generate` and succeeds with `DATABASE_URL` unset; without a
+  DB the site runs guest-only (tools keep working, auth/admin show
+  "not configured").
 - SSO limit (honest): true one-login SSO across two different vercel.app
   domains is NOT possible (cookies cannot cross domains). This build
   gives a shared DB + per-site sessions. SSO-on-a-shared-domain is a later
   step once custom domains exist.
 - Admin: Google login restricted to `ADMIN_EMAILS` + mandatory TOTP 2FA
   (setup `/admin/setup-2fa`, challenge `/admin/verify-2fa`, valid 12
-  hours). Roles: SUPER (everything), SUPPORT (read users/notes/support/
-  logs; no plan changes, deletes, money edits or settings), FINANCE
-  (view-only money + expenses view). Enforced in middleware AND every
-  API route. `/admin`, `/account`, `/signin`, `/onboarding` are excluded
+  hours, signed-cookie proof verified server-side on every /admin page
+  and /api/admin route). Roles: SUPER (everything), SUPPORT (read
+  users/notes/support/logs; no plan changes, deletes, money edits or
+  settings), FINANCE (view-only money + expenses view). Enforced in the
+  proxy (session presence) AND every page/API route (role + TOTP).
+  `/admin`, `/account`, `/signin`, `/onboarding` are excluded
   from the sitemap and carry robots noindex + X-Robots-Tag.
 - Payments: Paddle Billing (merchant of record), sandbox first. 5% +
   $0.50 per transaction; Paddle does NOT refund its fee on refunds.
@@ -100,14 +118,21 @@ vars in Vercel.
 
 ## Owner manual steps (in order)
 
-1. **Neon:** create a free Neon project, run `prisma db push` (or migrate)
-   with the schema, paste `DATABASE_URL` into this Vercel project AND
-   PDF Tools Hub. Generate a fresh `AUTH_SECRET` per site
-   (`openssl rand -base64 32`) — never reuse one across sites.
-2. **Google OAuth:** create a Cloud project + OAuth client, add redirect
-   URI `https://ai-studio-sandy-sigma.vercel.app/api/auth/callback/google`
-   (plus the sister site's URI if sharing the project), set app name/logo
-   and link `/privacy` + `/terms`. Note: full OAuth verification needs a
+1. **Supabase (owner taps — code cannot do these):** in the existing
+   "LeadForge" project, add redirect URL
+   `https://ai-studio-sandy-sigma.vercel.app/auth/callback` under
+   Authentication > URL Configuration (the Google provider is already
+   configured there — do NOT create a new Google Cloud OAuth client).
+   Push the schema ONCE from either repo (`prisma db push`), paste the
+   pooler `DATABASE_URL` into this Vercel project AND PDF Tools Hub,
+   and set `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ADMIN_EMAILS` and a fresh
+   per-site `TOTP_SECRET` (`openssl rand -base64 32` — never reuse one
+   across sites) in Vercel Production, then redeploy. Never remove or
+   overwrite `GROQ_API_KEY`. Until these taps are done, live Google
+   login CANNOT be proven — the code is built and tested without live
+   credentials, but the live login path stays unproven by design.
+2. **Google OAuth verification note:** full OAuth verification needs a
    verified domain the owner controls — a vercel.app subdomain cannot be
    verified, so OAuth works in Testing mode immediately (test users) and
    production verification needs a custom domain. Never claim
@@ -148,6 +173,16 @@ vars in Vercel.
 - Security headers in `next.config.ts`: CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, strict referrer policy.
 - Error responses are generic only — no stack traces, secrets or internal paths.
 - Uploads are processed in memory and never persisted or publicly listed.
+- Supabase Auth: sessions via `@supabase/ssr` cookies; `/auth/callback`
+  validates `next` as a relative path only (open-redirect tests in
+  `tests/redirect.test.ts`); admin TOTP is the pre-existing custom
+  RFC 6238 implementation (AES-256-GCM secret storage keyed by
+  `TOTP_SECRET`), server-checked on every admin page and API route via
+  the signed cookie — Supabase MFA deliberately not adopted (see
+  Architecture). No service-role key exists in this repo: deleting a
+  Supabase Auth identity itself requires the Supabase dashboard (the
+  anon key cannot delete auth users); account delete removes the Prisma
+  row and all its app data.
 - Files are deleted immediately after processing (max 60 minutes in any case) — stated on each tool page.
 
 ## Moderation

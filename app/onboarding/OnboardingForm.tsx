@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { supabaseSignOut } from "@/lib/supabase/client";
 import { completeOnboarding } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Alert, Label, TextInput } from "@/components/ui/field";
 
 export function OnboardingForm() {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState<"" | "UNDER_13" | "UNDER_16">("");
   const [pending, setPending] = useState(false);
@@ -21,7 +23,7 @@ export function OnboardingForm() {
       setBlocked(res.blocked);
       if (res.blocked === "UNDER_13") {
         // Account deleted server-side; sign out locally.
-        setTimeout(() => signOut({ callbackUrl: "/" }), 3000);
+        setTimeout(async () => { await supabaseSignOut(); router.push("/"); router.refresh(); }, 3000);
       }
       return;
     }

@@ -1,9 +1,10 @@
 // Second-factor proof, Edge-safe (WebCrypto only, no Node imports).
 // After a verified TOTP code, the server sets a signed cookie
-// `ai-studio-totp` = base64url(userId) + "." + expiryMs + "." + HMAC.
-// Middleware accepts it OR a JWT totpVerifiedAt within 12h, whichever is
-// present. The cookie is httpOnly, sameSite=lax, path=/admin (+ /api/admin
-// via the API guard reading the same cookie).
+// `ai-studio-totp` = base64url(Prisma userId) + "." + expiryMs + "." + HMAC.
+// The cookie is the ONLY second-factor proof (there is no JWT anymore):
+// lib/admin-page.ts and lib/admin-guard.ts verify it server-side on every
+// /admin page and /api/admin route. The cookie is httpOnly, sameSite=lax,
+// path=/, 12h expiry. Verification fails closed when TOTP_SECRET is unset.
 export const TOTP_COOKIE = "ai-studio-totp";
 export const TOTP_WINDOW_MS = 12 * 60 * 60 * 1000;
 

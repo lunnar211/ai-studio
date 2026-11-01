@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "./auth";
-import { TOTP_COOKIE, TOTP_WINDOW_MS, verifyTotpCookie } from "./totp-cookie";
+import { getSessionSafe } from "./auth";
+import { TOTP_COOKIE, verifyTotpCookie } from "./totp-cookie";
 import { hashIp } from "./ip-hash";
 import { getClientIp } from "./rate-limit";
 import { audit } from "./settings";
@@ -22,26 +22,29 @@ export async function requireAdmin(
   allowed: ("SUPER" | "SUPPORT" | "FINANCE")[],
   opts?: { skipTotp?: boolean }
 ): Promise<{ session: AdminSession; error: null } | { session: null; error: NextResponse }> {
-  const session = await auth().catch(() => null);
-  const user = session?.user as unknown as AdminSession | undefined;
+  const session = await getSessionSafe().catch(() => null);
+  const user = session?.user as unknown as AdminSession & { status?: string } | undefined;
   if (!user?.id || user.role !== "ADMIN" || !user.adminRole) {
+    return { session: null, error: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
+  }
+  if (user.status === "SUSPENDED") {
     return { session: null, error: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
   }
   if (!allowed.includes(user.adminRole as "SUPER" | "SUPPORT" | "FINANCE")) {
     return { session: null, error: NextResponse.json({ error: "Forbidden for your admin role." }, { status: 403 }) };
   }
   if (!opts?.skipTotp) {
-    const jwtOk =
-      typeof (user as unknown as Record<string, unknown>).totpVerifiedAt === "number" &&
-      Date.now() - ((user as unknown as Record<string, unknown>).totpVerifiedAt as number) < TOTP_WINDOW_MS;
+    // TOTP proof is the signed cookie ONLY (there is no JWT anymore).
+    // verifyTotpCookie returns false when TOTP_SECRET is unset, so admin
+    // API access fails closed without a configured second-factor secret.
     const cookieHeader = req.headers.get("cookie") || "";
     const match = cookieHeader.match(new RegExp(`${TOTP_COOKIE}=([^;]+)`));
-    const cookieOk = await verifyTotpCookie(match?.[1], user.id, process.env.AUTH_SECRET || "");
-    if (!jwtOk && !cookieOk) {
+    const cookieOk = await verifyTotpCookie(match?.[1], user.id, process.env.TOTP_SECRET || "");
+    if (!cookieOk) {
       return { session: null, error: NextResponse.json({ error: "Two-factor verification required." }, { status: 403 }) };
     }
   }
-  return { session: user, error: null };
+  return { session: user as AdminSession, error: null };
 }
 
 export async function auditAdmin(

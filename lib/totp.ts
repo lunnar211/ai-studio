@@ -60,9 +60,16 @@ export function verifyTotp(secret: string, code: string, atMs = Date.now()): boo
   return [-1, 0, 1].some((w) => totpCode(secret, atMs, w) === code);
 }
 
+// Encryption key derived from server-only TOTP_SECRET (formerly
+// AUTH_SECRET, renamed in the Supabase Auth rework — AUTH_SECRET no longer
+// exists). The "unset" fallback keeps unit tests deterministic; the
+// setup/verify ROUTES refuse to run without TOTP_SECRET, so production
+// secrets are never encrypted under the fallback key. Rotating
+// TOTP_SECRET still requires TOTP re-enrollment (old ciphertexts stop
+// decrypting), exactly as AUTH_SECRET rotation did before.
 function totpKey(): Buffer {
   return createHash("sha256")
-    .update(`ai-studio-totp:${process.env.AUTH_SECRET || "unset"}`)
+    .update(`ai-studio-totp:${process.env.TOTP_SECRET || "unset"}`)
     .digest();
 }
 

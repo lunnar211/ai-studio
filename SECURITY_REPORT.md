@@ -1,5 +1,91 @@
 # Security Report — AI Studio (auth, admin, payments build)
 
+## ADDENDUM 2026-11-01 — Supabase Auth rework (this change)
+
+Scope: Auth.js v5 removed entirely; Supabase Auth (Google provider, existing
+"LeadForge" project) + `@supabase/ssr` session handling; `proxy.ts` replaces
+`middleware.ts` (Next.js 16.4 deprecates middleware.ts); Prisma schema change
+is ONLY `User.supabaseId String? @unique`. Everything else (roles, plan,
+status, age gate, admin TOTP, Paddle, legal pages, tools) is unchanged in
+behaviour, adapted to Supabase identity. No live Google login is claimed:
+live login needs the owner's Supabase redirect-URL + Vercel env taps (see
+README "Owner manual steps"); all verification below was done without live
+credentials, against a local production build with Supabase/DB env unset.
+
+### Rework findings (all PASS as far as testable without live credentials)
+
+- R-1 Session handling — PASS. Supabase cookies are httpOnly, refreshed by
+  `proxy.ts` via `@supabase/ssr`; no home-grown JWT, no session data in
+  client-readable storage. `getSessionSafe()` returns null (never throws)
+  when Supabase/DB env is unset or the Prisma row is missing.
+- R-2 Callback + open redirect — PASS (unit + e2e). `/auth/callback`
+  exchanges the code server-side and redirects only through
+  `safeRedirectPath` (relative paths only). Absolute, protocol-relative,
+  backslash and encoded-slash `next` values all fall back to `/account`
+  (tests/redirect.test.ts, 5 tests; e2e: external `next` still lands on
+  /signin when no code is present — no external redirect issued).
+- R-3 IDOR with Supabase ids — PASS (code). Account export/delete and
+  checkout take the user id ONLY from the server session's Prisma row
+  (mapped by supabaseId, then email); no route accepts a user id from a
+  query/body parameter. Paddle webhook resolution is Supabase id first,
+  then legacy Prisma id, then email, and only ever resolves to an existing
+  Prisma row (unknown ids are ignored, never created).
+- R-4 Admin bypass — PASS (code + unauthenticated e2e). `/admin` and
+  `/account` redirect to `/signin` when logged out (Playwright); every
+  /admin page re-checks role + SUSPENDED + signed TOTP cookie server-side
+  (lib/admin-page.ts) and every /api/admin route re-checks role +
+  SUSPENDED + TOTP cookie (lib/admin-guard.ts). The proxy only checks
+  session presence — it is NOT the authority for role/TOTP, by design,
+  because those live in Prisma. setup-2fa/verify-2fa are the only TOTP
+  exemptions, as before.
+- R-5 CSRF — PASS (unchanged posture). Mutations require a valid Supabase
+  session cookie (SameSite=lax, httpOnly) plus, for admin routes, the
+  signed TOTP cookie; unauthenticated POSTs return 401/403 (e2e:
+  checkout 401, account export 401, account delete 401, admin export 403).
+  No cookie-based action works without a session.
+- R-6 XSS — PASS (unchanged). React escaping + SVG whitelist sanitizer
+  untouched by this rework.
+- R-7 Secrets scan — PASS. Grep over app/lib/components/prisma/docs for
+  key/secret/token patterns returns no real values; `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET` and `AUTH_SECRET` are fully removed from code
+  and docs (only historical rename notes mention AUTH_SECRET by name);
+  no `SUPABASE_SERVICE_ROLE_KEY` exists anywhere; the anon key is public
+  by design and is never committed (only an empty placeholder in
+  .env.example). The Supabase project URL in .env.example is a public
+  identifier, not a credential.
+- R-8 npm audit — NOT RUNNABLE HERE (same sandbox registry block as S-11:
+  `npm audit` returns 403 policy_denied). NOT a pass — owner step: run
+  `npm audit` on his own machine before/after deploy.
+- R-9 Account export/delete paths — PASS (unauthenticated) + HONEST LIMIT.
+  Unauthenticated calls return 401 (e2e). Authenticated behaviour is
+  unchanged except identity mapping. LIMIT: delete removes the Prisma row
+  and app data, but the Supabase Auth identity itself can only be deleted
+  with the service-role key or in the Supabase dashboard; this repo
+  deliberately introduces NO service-role key, so dashboard deletion is
+  the documented owner step (see COMPLIANCE_CHECKLIST.md). The same limit
+  applies to the under-13 path: the Prisma row is deleted and the user is
+  signed out, but the Supabase identity needs the dashboard step.
+- R-10 Age gate + checkout gating — PASS (code, unchanged logic).
+  Under-13 deletes the Prisma row, 13–15 cannot activate, 16–17 free-only,
+  18+ paid; checkout still requires age 18+ and rejects SUSPENDED.
+  Enforcement moved from middleware JWT claims to the callback route +
+  /account page + server actions (middleware/proxy cannot read Prisma).
+- R-11 TOTP decision — KEPT custom TOTP, Supabase MFA NOT adopted. Why:
+  the custom RFC 6238 implementation (AES-256-GCM secrets keyed by
+  per-site TOTP_SECRET, signed 12h cookie, server-checked on every admin
+  page/API route) already works and is unit-tested; Supabase MFA would add
+  a second enrolment flow and a second second-factor store for the same
+  admins with no security gain, and would complicate the admin UX (two
+  factors to manage). TOTP_SECRET replaces AUTH_SECRET for cookie signing
+  and secret encryption (renamed, not shared across sites); routes fail
+  closed (503) when it is unset.
+
+Retest counts (this rework): vitest 20/20 (incl. 5 new redirect tests);
+Playwright auth spec 6 tests + public spec (run against local production
+build, see below); production build exit 0 with DATABASE_URL and Supabase
+env unset; lint: pre-existing errors in untouched files only (see report
+to coordinator), no new lint errors from this rework after the router fix.
+
 Scope: code added or changed in this build only (Auth.js v5, Prisma schema,
 admin panel, Paddle checkout/webhook, legal pages, tool-route changes).
 Pre-existing tool code was reviewed where it interacts with new code.
@@ -17,8 +103,8 @@ live Paddle sandbox checkout needs the owner's Paddle account (S-9).
 
 ### S-1 Auth bypass — direct /admin URL logged out — PASS (fixed by design)
 - Reproduction: `curl /admin` and `/account` with no session.
-- Result: both 307 to `/signin`. Middleware (`middleware.ts`, Edge-safe,
-  no Prisma) gates pages; `requireAdminPage` gates server pages again.
+- Result: both 307 to `/signin`. The session proxy (`proxy.ts`, no Prisma) gates session presence;
+  `requireAdminPage` gates server pages again (role + TOTP).
 - Severity: none open.
 
 ### S-2 Admin API without session — PASS
@@ -38,16 +124,15 @@ live Paddle sandbox checkout needs the owner's Paddle account (S-9).
 
 ### S-4 IDOR — user A fetching user B's jobs/export — PASS (code)
 - `/api/account/export` and `/api/account/delete` take the user id ONLY
-  from the Auth.js session, never from a query/body parameter, so there is
+  from the Supabase-mapped server session, never from a query/body parameter, so there is
   no id to tamper with. Admin user pages require ADMIN role.
 - Severity: none open.
 
 ### S-5 CSRF — PASS (partially live-verified)
-- Mutations require a valid Auth.js session cookie (SameSite=lax,
-  httpOnly). Cross-origin POST without a session returns 401/403
-  (verified: export 401, admin export 403). Auth.js also validates the
-  session cookie signature; there is no cookie-based action that works
-  without a session.
+- Mutations require a valid Supabase session cookie (SameSite=lax,
+  httpOnly, signature verified by Supabase). Cross-origin POST without a
+  session returns 401/403 (verified: export 401, admin export 403).
+  There is no cookie-based action that works without a session.
 - Severity: none open.
 
 ### S-6 SSRF — MEDIUM, FIXED
@@ -137,6 +222,7 @@ live Paddle sandbox checkout needs the owner's Paddle account (S-9).
 - Pre-existing lint errors in untouched files (CookieBanner,
   ThemeToggle, TurnstileWidget, svg-sanitize, home image alt) were left
   alone; all new/changed files lint clean.
-- TOTP secret storage: AES-256-GCM with a key derived from AUTH_SECRET.
-  If AUTH_SECRET ever rotates, stored TOTP secrets must be re-enrolled —
+- TOTP secret storage: AES-256-GCM with a key derived from TOTP_SECRET
+  (renamed from AUTH_SECRET in the 2026-11-01 Supabase rework).
+  If TOTP_SECRET ever rotates, stored TOTP secrets must be re-enrolled —
   documented in README.
