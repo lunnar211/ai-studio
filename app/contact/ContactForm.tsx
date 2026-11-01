@@ -27,7 +27,9 @@ export function ContactForm() {
       return;
     }
     const data = await res.json().catch(() => ({}));
-    setState(data.error || "Could not send. Please try the email link below.");
+    // Never point at an email link that does not exist: when no contact
+    // address is published, say plainly to try again later.
+    setState(data.error || (mailto ? "Could not send. Please try the email link below." : "Could not send right now. Please try again later."));
   }
   if (sent) {
     return (
@@ -61,7 +63,7 @@ export function ContactForm() {
       {mailto && (
         <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
           Or <a className="underline" href={mailto}>open your email app</a> addressed to {email} instead.
-          No SMTP is configured on this site, so inbox replies are sent by an admin from their own email app.
+          Replies are sent by an admin from their own email app.
         </p>
       )}
     </form>

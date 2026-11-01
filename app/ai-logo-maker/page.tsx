@@ -111,7 +111,7 @@ export default function LogoMakerPage() {
         Make my logo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free tier: 10 requests per day, 3 variants per request. Prompts referencing existing brands are refused.
+        Free tier: unlimited requests, 3 variants per request. Prompts referencing existing brands are refused.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

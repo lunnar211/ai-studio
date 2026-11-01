@@ -324,7 +324,7 @@ export function LogoTool() {
           </Button>
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400" aria-live="polite">
             Logo generation is free and unlimited — one request gives 3 variants.
-            {" "}If AI generation is not configured, you will see an honest message instead of a fake logo.
+            {" "}If the AI service is not connected yet, you will see an honest message instead of a fake logo.
           </p>
         </form>
 

@@ -11,9 +11,14 @@ needs a code change — only your accounts, keys, and one redeploy.
   hosting is not available yet — wait until it is, or use PRO.
 - Vercel access to the `ai-studio` project (Production).
 - The one-time database push (covers LogoGeneration + AiUsageLog +
-  PhotoJob + PhotoJob.preUpscaleData): run `prisma db push` ONCE from
-  this repo. Until then, colorize endpoints return an honest 503 and
-  the UI never offers a dead button.
+  PhotoJob + PhotoJob.preUpscaleData): it runs ONCE in total across
+  both tool sites, never once per site. Coordination rule: the PDF
+  Tools Hub agent owns that single push, but only if its schema
+  matches this repo's and a database URL is already present locally;
+  otherwise the push is your tap (run it once from your machine with
+  the pooler connection string, §6 step 3). This repo never pushes.
+  Until the push lands, history/account/checkout endpoints return an
+  honest message and the tools never offer a dead button.
 
 ## 1. Create your own colorize Space (Tier B)
 
@@ -124,3 +129,88 @@ or run a live browser):
    offered for plain Colorize and for black & white Restore (colorize
    only — model face/scratch repair stays server, because the browser
    model cannot do it). Colour Restore stays server/Enhance.
+
+## 6. Every remaining setup tap — one checklist (all gates)
+
+Every "not set up yet" message on the site maps to exactly one row
+below. Nothing here needs a code change, and no value is invented:
+paste each value from its own dashboard, then redeploy. Work top to
+bottom; each row says what visitors see until it is done.
+
+1. **Sign-in (login service)** — what visitors see until done:
+   "Sign-in is not set up yet" on `/signin`, with the guest tools
+   still working.
+   - Vercel → `ai-studio` project → Settings → Environment
+     Variables → add `NEXT_PUBLIC_SUPABASE_URL` and
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY` for **Production AND Preview**.
+     Values: Supabase dashboard → Project Settings → API (the
+     existing LeadForge project — the same one LeadsForceGen uses;
+     no new project).
+   - Supabase dashboard → Authentication → Providers → **Google**:
+     confirm it is enabled.
+   - Supabase dashboard → Authentication → URL Configuration →
+     Redirect URLs → add
+     `https://ai-studio-sandy-sigma.vercel.app/auth/callback`.
+   - Vercel → Deployments → **Redeploy** (env changes need a
+     redeploy to go live).
+2. **Database connection (Vercel side)** — what visitors see until
+   done: "The database is not configured yet" on account/history
+   pages; the tools still work as guest tools.
+   - Vercel → `ai-studio` project → Settings → Environment
+     Variables → add `DATABASE_URL` for Production AND Preview.
+     Value: Supabase dashboard → Project Settings → Database →
+     connection string (use the pooler / transaction-mode string,
+     which is the one made for serverless hosting).
+   - Redeploy (same as step 1).
+3. **ONE database schema push** — what visitors see until done:
+   "Logo history is not available yet: the database needs one
+   schema update"; generations still work, they just are not saved.
+   - Coordination rule (do not run this twice): the PDF Tools Hub
+     agent owns the single push, but only if its schema matches
+     this repo's and a database URL is already present locally.
+     Otherwise run it once yourself from your machine with the
+     pooler connection string from step 2. This repo never pushes.
+   - After the push, sign in and check `/account`: logo history,
+     photo jobs, and export/delete work.
+4. **Admin allowlist + two-factor** — what the admin sees until
+   done: the admin pages refuse non-allowlisted sign-ins, and
+   `/admin/setup-2fa` reports two-factor is not set up.
+   - Vercel → `ai-studio` project → Settings → Environment
+     Variables → add `ADMIN_EMAILS` (your admin email address)
+     and a fresh `TOTP_SECRET` for Production AND Preview. Never
+     reuse a password or secret that was ever pasted in chat.
+   - Redeploy, sign in with Google, then open
+     `/admin/setup-2fa` and complete the authenticator setup.
+5. **Premium checkout (Paddle)** — what visitors see until done:
+   the Pricing page says checkout is not configured yet and shows
+   no Upgrade button; every free tool still works.
+   - Paddle dashboard → create the product + monthly/yearly
+     prices → note the price IDs.
+   - Paddle dashboard → Developers → Webhooks → add
+     `https://ai-studio-sandy-sigma.vercel.app/api/webhooks/paddle`.
+   - Vercel → `ai-studio` project → Settings → Environment
+     Variables → add `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`,
+     `PADDLE_PRICE_ID` (and the yearly price ID), with
+     `PADDLE_ENV=sandbox` first for testing.
+   - Redeploy, then run a sandbox checkout before switching
+     `PADDLE_ENV` to production.
+6. **Paid-GPU photo routes (optional, Premium only)** — what
+   visitors see until done: server colorize/restore offer the free
+   browser path or free Enhance instead; nothing is faked.
+   - Replicate dashboard → API tokens → `AI_API_KEYS`
+     (comma-separated image-provider keys only — never text/LLM
+     keys) and/or `REPLICATE_API_TOKEN`, plus the model slugs in
+     §2 (`REPLICATE_COLORIZE_MODEL`, `REPLICATE_UPSCALE_MODEL`,
+     `REPLICATE_RESTORE_MODEL`). Verify each model slug on
+     Replicate first; an unverified slug stays empty.
+   - Vercel env + redeploy (same as step 1).
+7. **Free server colorize (Space)** — see §1–§2 above
+   (`HF_TOKEN` + `HF_SPACE_ID` in Vercel + redeploy). Until done,
+   the free browser path is the working free colorize route.
+8. **Contact fallback address (optional)** — what visitors see
+   until done: the contact form sends to the support inbox when it
+   is configured, and otherwise says plainly to try again later.
+   - Vercel → `ai-studio` project → Settings → Environment
+     Variables → add `NEXT_PUBLIC_CONTACT_EMAIL` (an address you
+     monitor) to also offer the "open your email app" fallback on
+     `/contact`. Redeploy.

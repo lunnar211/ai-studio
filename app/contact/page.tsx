@@ -8,7 +8,7 @@ export default function Contact() {
       <p className="mt-3 text-lg text-muted-fg dark:text-slate-300">
         Tell us what went wrong, what you would like added, or anything else about AI Studio.
         Messages go to the support inbox for an admin reply. No automated email is sent from this
-        site (no SMTP is configured) — an admin replies from their own email app.
+        site — an admin replies from their own email app.
       </p>
       <ContactForm />
     </div>

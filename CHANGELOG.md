@@ -357,3 +357,81 @@ after the photo tools had just been made free + unlimited. Fixed the same way:
 - Owner preview checklist: generate a logo as guest → no credit message, no block →
   generate several in a row → still no block → signed-in generation saves to history
   (once the schema is pushed) → network responses leak-free.
+
+## Fix — every config gate honest + actionable, one owner checklist (this change)
+
+Owner complaint (2026-11-01): the sign-in page said "Sign-in is not
+configured yet. The site owner needs to add the Supabase URL and anon
+key (see README)" — jargon a visitor cannot act on. Audited every
+config-gated dead end in the app against three rules: (a) the message
+names the missing piece in plain words (never an env var name, never
+a provider name), (b) a working guest/free fallback is offered
+wherever one exists, (c) no dead button with no explanation.
+
+- FIXED — sign-in page (the reported one): the message is now
+  "Sign-in is not set up yet. The site owner needs to connect the
+  login service before this button can work. The logo generator and
+  photo enhancer still work as guest tools." The Google button is
+  already hidden while unconfigured, so there is no dead button.
+  Also fixed stale copy on the same page: it promised "higher daily
+  limits" and a "free daily limit" — both false since logos and
+  photos went free + unlimited. It now says sign-in saves logo
+  history and photo jobs, and guests use both tools free and
+  unlimited.
+- FIXED — logo generate 503 (no AI service connected): now names
+  the missing piece in plain words ("...because the AI service is
+  not connected yet") instead of a bare "unavailable right now".
+- FIXED — voice transcription 503: now reads "Voice transcription
+  is not set up yet. Please type your prompt instead." (piece +
+  fallback in one message). Note: the separate 10/day voice cap
+  stays — it gates metered voice dictation, not generation, and its
+  message already offers the type-instead fallback; removing it
+  needs a cost decision, so it is reported, not silently dropped.
+- FIXED — contact form dead end: when no contact address is
+  published, a failed send used to say "try the email link below"
+  with no link below. It now says "Could not send right now. Please
+  try again later." And "SMTP" jargon is gone from the contact page
+  and form ("an admin replies from their own email app").
+- FIXED — logo footer note: "not configured" became "not connected
+  yet" (plain words, same honesty).
+- FIXED — four stale landing pages (coffee-shop, tech-startup,
+  fitness-studio, ai-logo-maker) still said "Free tier: 10 requests
+  per day". They now say unlimited requests, matching the logo fix.
+- FIXED — photo enhancer Premium options: HD 4x and face enhance
+  were disabled with only a "(Premium only)" label and no path to
+  Premium. The advanced panel now adds one line when not Premium:
+  Premium is not for sale yet because checkout is not set up, and
+  everything else on the page is free and unlimited.
+- ALREADY PASSING, left alone: logo history ("database needs one
+  schema update... generations still work, they just are not
+  saved"), account page without a database ("tools still work as
+  guest tools", no buttons rendered), pricing (Upgrade hidden with
+  an explicit "checkout is not configured yet" note), server
+  colorize/restore (free browser path or free Enhance offered, never
+  a red dead end), Turnstile (fails open when unconfigured, so it
+  never gates the tools), admin two-factor/database messages
+  (admin-facing, plain enough for the owner), and the logo/photo
+  "temporarily disabled" messages (admin on/off switches, honest).
+- NEW — SETUP.md §6: ONE consolidated owner-tap checklist covering
+  every gate (sign-in login service + redirect, Vercel database
+  connection, the ONE schema push with the PDF Tools Hub ownership
+  rule, admin allowlist + two-factor, Paddle price/webhook, paid-GPU
+  keys + model slugs, the Space, the optional contact address),
+  each with the exact dashboard location for its value and what
+  visitors see until it is done. SETUP.md §0 corrected to match:
+  the push runs once in total across both sites, never once per
+  site, and this repo never pushes. No value invented anywhere.
+- Verified: tsc clean, eslint clean on all touched files, vitest
+  112/112, build EXIT=0, local `next start` checks (sign-in page
+  shows the new message with zero "anon key"/"Supabase URL"/"daily
+  limits" strings; landing pages show unlimited requests; contact
+  page has zero "SMTP"; generate returns the new 503 wording),
+  Playwright public spec 9/9 (2 new gate specs), leak scan clean
+  (no provider/model/env names in any changed user-facing string).
+  NEVER claimed preview-verified; merge to master still needs
+  explicit approval.
+- Owner preview checklist: open `/signin` while unconfigured → the
+  plain-words message, no button, guest tools linked → generate a
+  logo as guest (works once the AI service is connected) → open
+  `/pricing` → checkout note, no Upgrade button → open `/contact`
+  → form + honest fallback behaviour.

@@ -640,6 +640,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                 </div>
               </div>
             )}
+            {!isPremium && (
+              <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
+                Premium (HD 4x, face enhance, faster server processing) is not for sale yet —
+                checkout is not set up. Everything else on this page is free and unlimited.
+              </p>
+            )}
             <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
               Colour hints (telling the model exact colours, e.g. “blue uniform”) are not available yet: no
               verified instruction-based image model is configured. The pipeline stays faithful to the

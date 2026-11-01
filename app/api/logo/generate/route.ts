@@ -128,10 +128,11 @@ export async function POST(req: Request) {
   }
 
   // Any configured text provider can serve logos. With no provider key
-  // at all, say so generically (P0: no env var names in responses).
+  // at all, say so in plain words (P0: no provider or env var names in
+  // responses) and name the missing piece: the AI service connection.
   if (!(await anyProviderEnabled("text"))) {
     return NextResponse.json(
-      { error: "AI logo generation is unavailable right now. Please try again later." },
+      { error: "AI logo generation is unavailable right now because the AI service is not connected yet. Please try again later." },
       { status: 503 }
     );
   }

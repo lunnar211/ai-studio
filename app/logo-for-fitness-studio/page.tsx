@@ -43,7 +43,7 @@ export default function FitnessStudioPage() {
         Generate my fitness logo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free tier: 10 requests per day, 3 variants per request. Prompts referencing existing brands are refused.
+        Free tier: unlimited requests, 3 variants per request. Prompts referencing existing brands are refused.
       </p>
     </div>
   );

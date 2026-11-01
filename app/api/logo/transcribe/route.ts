@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   } catch (err) {
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {
-      return NextResponse.json({ error: "Voice transcription is not configured yet." }, { status: 503 });
+      return NextResponse.json({ error: "Voice transcription is not set up yet. Please type your prompt instead." }, { status: 503 });
     }
     if (e?.rateLimited) {
       return NextResponse.json({ error: "The transcription service is busy right now. Please wait a minute and try again." }, { status: 429 });

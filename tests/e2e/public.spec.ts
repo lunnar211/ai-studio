@@ -42,6 +42,28 @@ test("pricing, FAQ and use-case pages render", async ({ page }) => {
   }
 });
 
+test("sign-in gate is honest in plain words (unconfigured env)", async ({ page }) => {
+  await page.goto("/signin");
+  // Plain-words message naming the missing piece (login service), no
+  // env var names, no provider names, and the guest fallback stated.
+  await expect(page.getByText(/Sign-in is not set up yet/)).toBeVisible();
+  await expect(page.getByText(/connect the login service/)).toBeVisible();
+  await expect(page.getByText(/still work as guest tools/)).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("anon key");
+  await expect(page.locator("body")).not.toContainText("Supabase URL");
+  // No dead sign-in button: the unconfigured page shows the message
+  // instead of a button that goes nowhere.
+  await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
+});
+
+test("logo landing pages show unlimited requests, never the old daily cap", async ({ page }) => {
+  for (const path of ["/logo-for-coffee-shop", "/logo-for-tech-startup", "/logo-for-fitness-studio", "/ai-logo-maker"]) {
+    await page.goto(path);
+    await expect(page.getByText(/unlimited requests/i).first()).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("10 requests per day");
+  }
+});
+
 test("legal pages render", async ({ page }) => {
   for (const path of ["/privacy", "/terms", "/cookies", "/refund-policy", "/acceptable-use", "/dmca"]) {
     await page.goto(path);
