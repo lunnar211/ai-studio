@@ -103,6 +103,40 @@
   whole-image merge byte-identical across band edges, plus
   single-pixel alpha case).
 
+## 2026-11-01 — Motion on every site (AI Studio first)
+
+- PICK (from motion.dev, the Motion site, 2026-11-01): the
+  site's Scroll + Gesture showcase — sections fade in and rise
+  12px on entering the viewport; buttons answer hover with
+  scale 1.02 and tap with 0.98. Values follow the UI/UX Pro
+  Max "Scroll Reveal" guidance (Subtle tier, 300-400ms,
+  easeOut, list stagger 0.03s). Motion is Framer Motion's new
+  name (same library); the installed package is `motion`
+  14.9.0, imported from `motion/react`. UI/UX Pro Max itself
+  is a local design-intelligence skill, not an npm package —
+  it was already installed; its guidance is what this
+  implementation follows, not a new dependency.
+- IMPLEMENTATION: new shared `components/motion/Reveal.tsx`
+  (scroll reveal wrapper) applied to the homepage hero, tool
+  cards, trust cards, FAQ items, gallery, how-it-works,
+  premium and restore sections; the shared `components/ui/
+  button.tsx` now answers hover/tap site-wide. Transform +
+  opacity ONLY (no layout shift); disabled buttons get no
+  motion; no-JS visitors still see all content.
+- REDUCED-MOTION GOTCHA, FIXED: Motion's own
+  useReducedMotion() stayed false on this stack even with
+  <MotionConfig reducedMotion="user"> (proven by browser
+  test), so reduced-motion users would have gotten animated
+  reveals. The site now detects the OS setting directly
+  (`components/motion/use-reduced-motion.ts`, matchMedia via
+  useSyncExternalStore) and renders the final state
+  immediately, with no animation.
+- MOTION TEST (local prod build, Playwright): hero visible
+  after reveal; FAQ reveal opacity 0 before scroll, 1 after;
+  enabled button hover transform matrix(1.02); reduced-motion
+  reveal visible without scrolling; zero horizontal overflow;
+  zero page errors. tsc 0, eslint 0, vitest 138/138, build 0.
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 
