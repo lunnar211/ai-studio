@@ -3,8 +3,9 @@
 // What IS checked:
 // - Prompt text: the blocklist (brands/celebrities/disallowed content)
 //   plus prompt-injection cleaning, both in lib/logo.ts and lib/blocklist.
-// - Hint text: the router's text moderation (NVIDIA NeMo Guard) when
-//   its key is configured; otherwise no external text check runs.
+// - Hint text: the router's text moderation (NVIDIA NeMo Guard first,
+//   OpenRouter chat classification as fallback) when a key for either
+//   is configured; otherwise no external text check runs.
 // What is NOT checked (no provider for it is configured):
 // - Image NSFW / illegal-content classification. No image-moderation
 //   model exists in any configured provider's catalogue (NVIDIA's list
@@ -51,7 +52,7 @@ export async function moderationAvailability(): Promise<{
   const settings = await import("../settings").then((m) => m.getSettings());
   const { providerEnabled } = await import("./registry");
   return {
-    textModeration: providerEnabled("nvidia", settings),
+    textModeration: providerEnabled("nvidia", settings) || providerEnabled("openrouter", settings),
     imageModeration: false,
   };
 }

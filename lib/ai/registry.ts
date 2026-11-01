@@ -53,7 +53,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: "openrouter",
     envKey: "OPENROUTER_API_KEY",
-    capabilities: ["text"],
+    capabilities: ["text", "moderation-text"],
     label: "OpenRouter",
     cost: "free",
   },
@@ -174,9 +174,11 @@ const PRIORITY: Record<AiCapability, { free: AiProviderId[]; premium: AiProvider
     free: ["elevenlabs"],
     premium: ["elevenlabs"],
   },
+  // OpenRouter is the moderation fallback: it runs only when NVIDIA
+  // fails (Groq has no classifier adapter, so the router skips it).
   "moderation-text": {
-    free: ["nvidia", "groq"],
-    premium: ["nvidia", "groq"],
+    free: ["nvidia", "groq", "openrouter"],
+    premium: ["nvidia", "groq", "openrouter"],
   },
   "moderation-image": {
     free: [],

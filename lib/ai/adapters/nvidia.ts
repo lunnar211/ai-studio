@@ -128,7 +128,10 @@ export async function nvidiaModerateText(opts: {
       60
     );
     if (status < 200 || status >= 300) {
-      return { flagged: false, categories: [], provider: "nvidia", model: NVIDIA_SAFETY_MODEL };
+      // A failed safety check must NOT report "not flagged": the router
+      // falls through to the next moderation provider (OpenRouter) and,
+      // if none answers, reports checked:false honestly.
+      throw new AiError("NVIDIA_MODERATION_FAILED", "NVIDIA safety check failed.", 502);
     }
     const flagged = /^unsafe\b/i.test(text.trim());
     return {
@@ -137,7 +140,8 @@ export async function nvidiaModerateText(opts: {
       provider: "nvidia",
       model: NVIDIA_SAFETY_MODEL,
     };
-  } catch {
-    return { flagged: false, categories: [], provider: "nvidia", model: NVIDIA_SAFETY_MODEL };
+  } catch (err) {
+    if (err instanceof AiError) throw err;
+    throw new AiError("NVIDIA_MODERATION_FAILED", "NVIDIA safety check failed.", 502);
   }
 }

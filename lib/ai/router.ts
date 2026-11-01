@@ -11,7 +11,7 @@ import { logAiUsage } from "./usage";
 import { priorityFor, providerDef, providerEnabled } from "./registry";
 import { groqChat, groqTranscribe } from "./adapters/groq";
 import { geminiChat, geminiAnalyzePhoto } from "./adapters/gemini";
-import { openrouterChat } from "./adapters/openrouter";
+import { openrouterChat, openrouterModerateText } from "./adapters/openrouter";
 import { nvidiaAnalyzePhoto, nvidiaModerateText } from "./adapters/nvidia";
 import { elevenlabsSpeak } from "./adapters/elevenlabs";
 import { huggingfaceDisabled } from "./adapters/huggingface";
@@ -227,6 +227,11 @@ export async function routeModerationText(opts: {
     try {
       if (provider === "nvidia") {
         const r = await nvidiaModerateText({ text: opts.text });
+        recordSuccess(provider);
+        return { ...r, checked: true };
+      }
+      if (provider === "openrouter") {
+        const r = await openrouterModerateText({ text: opts.text });
         recordSuccess(provider);
         return { ...r, checked: true };
       }
