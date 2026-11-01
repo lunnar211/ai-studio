@@ -46,7 +46,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: "gemini",
     envKey: "GEMINI_API_KEY",
-    capabilities: ["text", "vision"],
+    capabilities: ["text", "vision", "image-generate"],
     label: "Google Gemini",
     cost: "cheap",
   },
@@ -79,6 +79,13 @@ export const PROVIDERS: ProviderDef[] = [
     cost: "paid",
   },
   {
+    id: "fal",
+    envKey: "FAL_KEY",
+    capabilities: ["image-generate"],
+    label: "fal.ai",
+    cost: "paid",
+  },
+  {
     id: "sharp",
     envKey: "",
     capabilities: ["image-upscale"],
@@ -88,7 +95,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: "huggingface",
     envKey: "HF_API_TOKEN",
-    capabilities: ["text", "vision", "image-colorize", "image-upscale"],
+    capabilities: ["text", "vision", "image-colorize", "image-upscale", "image-generate"],
     label: "Hugging Face (disabled)",
     cost: "free",
     needsOptIn: true,
@@ -165,6 +172,17 @@ const PRIORITY: Record<AiCapability, { free: AiProviderId[]; premium: AiProvider
   "image-edit": {
     free: ["replicate"],
     premium: ["replicate"],
+  },
+  // Raster image generation (text-to-image). The chain in
+  // lib/ai/image-generate/chain.ts walks this order: Gemini first,
+  // then fal.ai, then Hugging Face only when its opt-in is set.
+  // The router itself never routes this capability; the entry only
+  // documents the order. Groq, OpenRouter, NVIDIA, ElevenLabs and
+  // Brevo are deliberately absent: none of them can generate
+  // raster images on the owner's keys.
+  "image-generate": {
+    free: ["gemini", "fal"],
+    premium: ["gemini", "fal"],
   },
   stt: {
     free: ["groq"],

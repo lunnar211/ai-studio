@@ -12,6 +12,7 @@ export type AiCapability =
   | "image-colorize"
   | "image-upscale"
   | "image-edit"
+  | "image-generate"
   | "stt"
   | "tts"
   | "moderation-text"
@@ -26,6 +27,7 @@ export type AiProviderId =
   | "nvidia"
   | "elevenlabs"
   | "replicate"
+  | "fal"
   | "sharp"
   | "huggingface";
 

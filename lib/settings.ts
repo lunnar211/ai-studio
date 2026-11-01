@@ -26,6 +26,7 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   "ai.provider.nvidia": "true",
   "ai.provider.elevenlabs": "true",
   "ai.provider.replicate": "true",
+  "ai.provider.fal": "true",
   "ai.provider.huggingface": "true",
   "ai.provider.sharp": "true",
   maintenanceMode: "false",
@@ -33,6 +34,11 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   adsEnabled: "false",
   logoEnabled: "true",
   enhanceEnabled: "true",
+  // Raster image generation (/image-generator). Default on: the
+  // provider keys are the real gate — with no key set the route
+  // answers "not connected yet". An admin can kill it instantly
+  // with this toggle, no redeploy needed.
+  imageGenerateEnabled: "true",
 };
 
 export async function getSettings(): Promise<Record<string, string>> {
