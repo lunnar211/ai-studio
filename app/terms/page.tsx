@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LIMITS } from "@/lib/limits";
 export const metadata: Metadata = { title: "Terms of Service — AI Studio", description: "Terms for using AI Studio's logo generator and photo enhancer." };
 export default function Terms() {
   return (
@@ -6,7 +7,7 @@ export default function Terms() {
       <h1 className="font-display text-4xl font-bold italic">Terms of Service</h1>
       <p className="text-muted-fg dark:text-slate-300">Last updated: November 2026. By using AI Studio you accept these terms.</p>
       <h2 className="text-2xl font-bold">The service</h2>
-      <p className="text-muted-fg dark:text-slate-300">AI Studio provides an AI logo generator and a photo enhancer. Guest use is free within daily limits (10 AI generations per day per visitor). Signed-in users get higher limits from the admin-configured quotas. We may change limits, suspend abusive accounts, or discontinue a tool with notice on the site.</p>
+      <p className="text-muted-fg dark:text-slate-300">AI Studio provides an AI logo generator and a photo enhancer. Guest use is free within daily limits ({LIMITS.logoRequestsFree} logo requests and {LIMITS.photoCreditsFree} photo credits per day per visitor). Signing in keeps the same free limits and adds history and account features; Premium raises them to {LIMITS.logoRequestsPremium} logo requests and {LIMITS.photoCreditsPremium} photo credits per day. We may change limits, suspend abusive accounts, or discontinue a tool with notice on the site.</p>
       <h2 className="text-2xl font-bold">Age rules (self-declaration, no ID documents)</h2>
       <ul className="list-disc space-y-2 pl-6 text-muted-fg dark:text-slate-300">
         <li>Under 13: no account. The account is deleted/blocked and no data is kept (COPPA and the GDPR-K lower bound).</li>

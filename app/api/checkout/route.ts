@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // Creates a Paddle hosted-checkout transaction for the Premium plan.
 // Auth + age 18+ required. No card data touches this site.
-export async function POST() {
+export async function POST(req: Request) {
   const session = await getSessionSafe().catch(() => null);
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -24,7 +24,21 @@ export async function POST() {
     return NextResponse.json({ error: "Checkout is not configured yet." }, { status: 503 });
   }
   const paddle = getPaddle();
-  const priceId = process.env.PADDLE_PRICE_ID!;
+  // Billing period: "monthly" (default) or "yearly" when a yearly
+  // price id is configured. An unknown value falls back to monthly;
+  // a yearly request without a yearly price id is refused honestly.
+  let billing: string = "monthly";
+  try {
+    const body = (await req.json().catch(() => null)) as { billing?: string } | null;
+    if (body?.billing === "yearly") billing = "yearly";
+  } catch {
+    // Empty body (old callers): monthly.
+  }
+  const priceId =
+    billing === "yearly" ? process.env.PADDLE_PRICE_ID_YEARLY : process.env.PADDLE_PRICE_ID;
+  if (!priceId) {
+    return NextResponse.json({ error: billing === "yearly" ? "Yearly billing is not configured yet." : "Checkout is not configured yet." }, { status: 503 });
+  }
   if (!paddle) return NextResponse.json({ error: "Checkout is not configured yet." }, { status: 503 });
   try {
     const tx = await paddle.transactions.create({

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LIMITS } from "@/lib/limits";
 export const metadata: Metadata = { title: "About AI Studio", description: "AI Studio makes two free AI tools: an original logo generator and a photo enhancer. No account needed for the free tier." };
 export default function About() {
   return (
@@ -21,9 +22,13 @@ export default function About() {
       </p>
       <h2 className="mt-8 text-2xl font-bold">Free tier and premium</h2>
       <p className="mt-3 text-muted-fg dark:text-slate-300">
-        The free tier allows 10 AI generations per day per visitor. Signed-in users get higher limits,
-        and a Premium plan with higher limits is sold through Paddle (merchant of record) once checkout
-        is configured — this site never asks you to type card details into a form here.
+        The free tier allows {LIMITS.logoRequestsFree} logo requests and {LIMITS.photoCreditsFree} photo
+        credits per day per visitor. Signing in keeps the same free limits and adds saved logo history,
+        favorites, and account features — it does not raise free limits. A Premium plan
+        ({LIMITS.logoRequestsPremium} logo requests and {LIMITS.photoCreditsPremium} photo credits per
+        day, HD 4x up to 4096px, face enhance, priority generation, no ads) is sold through Paddle
+        (merchant of record) once checkout is configured — this site never asks you to type card
+        details into a form here.
       </p>
     </div>
   );

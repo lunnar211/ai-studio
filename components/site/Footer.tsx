@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SISTER_SITE_URL, LEADSFORCEGEN_URL } from "@/lib/site";
+import { LIMITS } from "@/lib/limits";
 
 export function Footer() {
   return (
@@ -42,7 +43,9 @@ export function Footer() {
             <li><Link href={LEADSFORCEGEN_URL} className="inline-flex min-h-[44px] items-center hover:underline">LeadsForceGen</Link></li>
           </ul>
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
-            Free tier: 10 AI generations per day per visitor. Files are processed on our server and deleted immediately after processing (max 60 minutes in any case); we never list or share them.
+            Free tier: {LIMITS.logoRequestsFree} logo requests and {LIMITS.photoCreditsFree} photo credits
+            per day per visitor. Files are processed on our server and deleted immediately after processing
+            (max 60 minutes in any case); we never list or share them. Browser colorize never uploads your photo at all.
           </p>
         </nav>
       </div>

@@ -4,10 +4,10 @@ import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
   title: "AI Photo Enhancer — Sharpen and Upscale Photos",
-  description: "Upload a JPG, PNG or WebP photo up to 10 MB and get a sharper, upscaled PNG back. Before/after slider included. Results are labelled AI or standard quality honestly.",
+  description: "Upload a JPG, PNG or WebP photo up to 10 MB and get a sharper, upscaled photo back in PNG, JPG, or WebP. Before/after slider included. Results are labelled AI or standard quality honestly.",
   openGraph: {
     title: "AI Photo Enhancer | AI Studio",
-    description: "Upload a photo and get a sharper, upscaled PNG back, with an honest AI or standard-quality label.",
+    description: "Upload a photo and get a sharper, upscaled photo back in PNG, JPG, or WebP, with an honest AI or standard-quality label.",
   },
 };
 

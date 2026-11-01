@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Image, Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
+import { Image as ImageIcon, Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
 import { SISTER_SITE_URL, LEADSFORCEGEN_URL } from "@/lib/site";
+import { LIMITS } from "@/lib/limits";
 
 export const metadata: Metadata = {
   title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
@@ -15,12 +16,12 @@ const TOOLS = [
   },
   {
     href: "/photo-enhancer", icon: Wand2, title: "AI Photo Enhancer",
-    desc: "Upload a JPG, PNG or WebP photo and get a sharper, upscaled version back. Compare before and after with a slider, then download PNG.",
+    desc: "Upload a JPG, PNG or WebP photo and get a sharper, upscaled version back. Compare before and after with a slider, then download PNG, JPG, or WebP.",
   },
 ];
 
 const FAQS = [
-  { q: "Is AI Studio really free?", a: "Yes. The free tier gives you 10 AI generations per day per visitor, with no account and no payment details. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to 100 per day and is sold through Paddle (see Pricing)." },
+  { q: "Is AI Studio really free?", a: `Yes. The free tier gives you ${LIMITS.logoRequestsFree} logo requests and ${LIMITS.photoCreditsFree} photo credits per day per visitor, with no account and no payment details. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to ${LIMITS.logoRequestsPremium} logo requests and ${LIMITS.photoCreditsPremium} photo credits per day and is sold through Paddle (see Pricing).` },
   { q: "What happens to my uploaded photos?", a: "Files are processed on our server and deleted immediately after processing (max 60 minutes in any case). We never list, share or train on them." },
   { q: "Can I use a generated logo for my business?", a: "Yes. Logos are generated as original geometry from your description. Prompts that reference existing brands, characters or public figures are refused, so the result is yours to use. For trademark registration, get independent legal advice." },
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },
@@ -68,7 +69,7 @@ export default function Home() {
         <ol className="mt-5 space-y-4">
           <li><strong>Describe or upload.</strong> Type a short logo idea, or drop in a photo (JPG, PNG or WebP, up to 10 MB).</li>
           <li><strong>Generate.</strong> The logo is drawn by an AI model and cleaned up on our server; the photo is upscaled and sharpened.</li>
-          <li><strong>Download.</strong> Logos export as SVG or 1024px PNG. Photos download as PNG. Your files are then deleted.</li>
+          <li><strong>Download.</strong> Logos export as SVG or 1024px PNG. Photos download as PNG, JPG, or WebP. Your files are then deleted.</li>
         </ol>
       </section>
 
@@ -92,8 +93,10 @@ export default function Home() {
       <section aria-labelledby="premium-heading" className="mt-12 border-2 border-accent bg-white p-6 dark:bg-slate-900">
         <h2 id="premium-heading" className="font-display text-3xl font-bold italic">Premium plan</h2>
         <p className="mt-2 max-w-xl text-muted-fg dark:text-slate-300">
-          Higher daily limits, no ads, and HD export. Premium is sold through Paddle — checkout is handled
-          by Paddle as merchant of record, and no card details are ever entered on this site.
+          {LIMITS.logoRequestsPremium} logo requests and {LIMITS.photoCreditsPremium} photo credits per
+          day, HD 4x export up to 4096px, face enhance, priority generation, and no ads. Premium is
+          sold through Paddle — checkout is handled by Paddle as merchant of record, and no card
+          details are ever entered on this site.
         </p>
         <Link href="/pricing" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
           See Premium pricing
@@ -124,7 +127,7 @@ export default function Home() {
           </Link>
         </div>
         <p className="mt-3 flex items-center gap-2 text-sm text-muted-fg dark:text-slate-400">
-          <Image size={16} aria-hidden="true" /> PDF Tools Hub converts and merges documents; LeadsForceGen finds business leads.
+          <ImageIcon size={16} aria-hidden="true" /> PDF Tools Hub converts and merges documents; LeadsForceGen finds business leads.
         </p>
       </section>
     </div>

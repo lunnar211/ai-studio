@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LIMITS } from "@/lib/limits";
 import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: "Yes. The free tier gives you 10 logo requests and 10 photo enhancements per day, with no account and no payment details. One logo request gives 3 variants and uses 1 credit. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to 100 per day.",
+    a: `Yes. The free tier gives you ${LIMITS.logoRequestsFree} logo requests and ${LIMITS.photoCreditsFree} photo credits per day, with no account and no payment details. One logo request gives 3 variants and uses 1 credit. Photo jobs cost ${LIMITS.photoCreditCost.enhance} credit for Enhance, ${LIMITS.photoCreditCost.restore} for Colorize or Restore, and ${LIMITS.photoCreditCost["colorize-hd"]} for Colorize + HD. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to ${LIMITS.logoRequestsPremium} logo requests and ${LIMITS.photoCreditsPremium} photo credits per day.`,
   },
   {
     q: "What do I get from the logo generator?",
@@ -30,11 +31,11 @@ const FAQS = [
   },
   {
     q: "How does the photo enhancer work?",
-    a: "Upload a JPG, PNG, or WebP image up to 10 MB. The server upscales and sharpens it; when a Replicate token is configured, AI upscaling (Real-ESRGAN) is used, otherwise a standard Sharp upscale is used — and the result is always labelled honestly. Download the result as PNG or JPG, and drag the slider to compare before and after.",
+    a: "Upload a JPG, PNG, or WebP image up to 10 MB. The server upscales and sharpens it; when a Replicate token is configured, AI upscaling (Real-ESRGAN) is used, otherwise a standard Sharp upscale is used — and the result is always labelled honestly. Colorize can also run free in your browser (DeOldify model, photo stays on your device) or on the owner's private Space. Download the result as PNG, JPG, or WebP, and drag the slider to compare before and after.",
   },
   {
     q: "What happens to my photos and prompts?",
-    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case). We never list or share them. Prompts are sent to Groq to produce logos; they are not used to train models.",
+    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case), except browser colorize, where the photo never leaves your device. We never list or share them. Prompts are sent to our AI providers (Groq first, with OpenRouter and Gemini as fallbacks) to produce logos; they are not used by us to train models. See the Privacy Policy for every provider and retention rule.",
   },
   {
     q: "How do I pay for Premium?",

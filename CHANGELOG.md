@@ -70,3 +70,29 @@ All work on the `full-upgrade` branch unless noted. Production
   ORT version pin, tier order, Space SSE/host/file/poll).
 - Deps: `onnxruntime-web@1.31.1`, `@gradio/client@2.7.2` (installed
   via npm; package.json + lockfile updated).
+
+## Phase 2 — content + logic consistency (this change)
+
+- Every limit number now comes from the single config (`lib/limits.ts`
+  defaults for static pages; `getEffectiveLimits()` for dynamic
+  pages). Fixed all four brief inconsistencies: footer/home
+  "10 AI generations" -> 10 logo requests + 10 photo credits per day;
+  Pricing now lists Premium HD 4x/4096px + face enhance + priority
+  (Home already did); About/Terms "signed-in users get higher limits"
+  -> signing in keeps the same free limits (FAQ already said so);
+  download formats unified everywhere (logos SVG + PNG 1024; photos
+  PNG/JPG/WebP).
+- Pricing rewritten: real Paddle price fetched via the SDK
+  (`getPaddlePriceDisplay`; monthly `PADDLE_PRICE_ID` + optional yearly
+  `PADDLE_PRICE_ID_YEARLY`), comparison table, short refund summary
+  (14 days, Paddle fee 5% + $0.50 non-refundable, cancel stops future
+  billing). Upgrade buttons HIDE when Paddle is unconfigured — no dead
+  checkout. Checkout route accepts `{billing: monthly|yearly}`.
+- Privacy/FAQ/AI-disclosure now name EVERY provider that can receive
+  data (Groq, OpenRouter, Gemini, NVIDIA, ElevenLabs, Replicate with
+  its Apr 2026 retention policy + link, owner's HF Space, local
+  Sharp, browser mode = no third party) and state the honest
+  retention for each hop.
+- New tests: `tests/paddle-price.test.ts` (price formatting).
+- Verified: tsc clean, eslint clean on touched files, vitest 61/61,
+  build EXIT=0.

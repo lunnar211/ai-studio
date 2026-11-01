@@ -32,11 +32,15 @@ export function ExportButton() {
   );
 }
 
-export function CheckoutButton() {
+export function CheckoutButton({ billing = "monthly", label }: { billing?: "monthly" | "yearly"; label?: string }) {
   const [state, setState] = useState("");
   async function run() {
     setState("Starting checkout…");
-    const res = await fetch("/api/checkout", { method: "POST" });
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ billing }),
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setState(data.error || "Checkout is not available right now.");
@@ -47,7 +51,7 @@ export function CheckoutButton() {
   }
   return (
     <div>
-      <Button type="button" onClick={run}>Upgrade to Premium via Paddle</Button>
+      <Button type="button" onClick={run}>{label ?? "Upgrade to Premium via Paddle"}</Button>
       {state && <p className="mt-2 text-sm text-muted-fg dark:text-slate-400" role="status">{state}</p>}
       <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
         Paid plans require age 18+. Checkout is handled by Paddle (merchant of record);
