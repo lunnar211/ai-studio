@@ -18,6 +18,21 @@
 - REGRESSION TEST: `tests/csp-wasm.test.ts` fails if the keyword is
   ever removed, and fails if broad `'unsafe-eval'` creeps in.
 
+## 2026-11-01 — browser colorize, second gate (same day, master)
+
+- The first fix exposed a SECOND bug hiding behind it: the live
+  re-test failed with "no available backend found" and a fetch
+  failure for ORT's `ort-wasm-simd-threaded.jsep.mjs`. The file
+  exists on jsDelivr (HTTP 200) and the installed ORT version is
+  exactly the pinned 1.31.1, so the fetch was being refused, not
+  missing. A two-origin Playwright proof named the gate:
+  `script-src-elem` violation on the module URL; adding the origin
+  to script-src made the import succeed.
+- FIX: `script-src` now also includes `https://cdn.jsdelivr.net`
+  (module script loads are governed by script-src-elem, so the
+  existing connect-src entry was never enough). Regression test
+  extended to fail if the CDN origin is ever removed.
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 

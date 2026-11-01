@@ -1,16 +1,23 @@
 import type { NextConfig } from "next";
 
-// 'wasm-unsafe-eval' is REQUIRED, not optional: browser colorize
-// (DeOldify ONNX via onnxruntime-web) falls back to WASM wherever
-// WebGPU is unavailable, and Chrome refuses to compile ANY WebAssembly
-// module when script-src lacks 'wasm-unsafe-eval' (proven 2026-11-01:
-// live CSP blocked WebAssembly.compile; adding the keyword unblocked
-// it). It allows wasm compilation ONLY — unlike 'unsafe-eval', it does
-// not allow JavaScript eval. Removing it silently breaks browser
-// colorize on every device without WebGPU.
+// Browser colorize (DeOldify ONNX via onnxruntime-web) needs TWO
+// script-src allowances, both proven 2026-11-01 — removing either
+// silently breaks it again:
+// 1. 'wasm-unsafe-eval': Chrome refuses to compile ANY WebAssembly
+//    module without it, which kills the WASM fallback on every
+//    browser without WebGPU. It allows wasm compilation ONLY —
+//    unlike 'unsafe-eval', it does not allow JavaScript eval.
+// 2. https://cdn.jsdelivr.net: onnxruntime-web dynamically imports
+//    its helper module (ort-wasm-simd-threaded.jsep.mjs) from the
+//    jsDelivr CDN at the pinned version in lib/browser/deoldify-core.
+//    Without this origin, the import fails with "Failed to fetch
+//    dynamically imported module" and NO backend is available at all
+//    (the failure hides behind the first fix until the detailed
+//    error is visible). connect-src alone is not enough — module
+//    script loads are governed by script-src-elem.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://challenges.cloudflare.com https://va.vercel-scripts.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
