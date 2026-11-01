@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
 import { LIMITS } from "@/lib/limits";
 import { RestoreSection } from "@/components/site/RestoreSection";
@@ -159,6 +160,53 @@ export default function Home() {
       </section>
 
       <RestoreSection />
+
+      <section aria-labelledby="gallery-heading" className="mt-12">
+        <h2 id="gallery-heading" className="font-display text-3xl font-bold italic">Old photos you can try it on</h2>
+        <p className="mt-3 max-w-2xl text-muted-fg dark:text-slate-300">
+          No old photo handy? These are real 19th-century photographs from the public domain,
+          shown here in black and white. They are originals, not results — open the enhancer and
+          colorize one yourself to see what the tool does.
+        </p>
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          {[
+            {
+              src: "/gallery/man-19th-century.jpg",
+              alt: "Black-and-white 19th-century studio portrait of a man",
+              title: "Studio portrait, 19th century",
+              credit: "Public domain via Wikimedia Commons",
+              file: "https://commons.wikimedia.org/wiki/File:19th_century_Photograph_-_man.jpg",
+            },
+            {
+              src: "/gallery/woman-19th-century.jpg",
+              alt: "Black-and-white 19th-century studio portrait of a woman",
+              title: "Studio portrait, 19th century",
+              credit: "Public domain via Wikimedia Commons",
+              file: "https://commons.wikimedia.org/wiki/File:19th_century_Photograph_-_woman.jpg",
+            },
+            {
+              src: "/gallery/jeremiah-gurney.jpg",
+              alt: "Black-and-white self-portrait of photographer Jeremiah Gurney",
+              title: "Jeremiah Gurney, self-portrait",
+              credit: "Public domain via Wikimedia Commons",
+              file: "https://commons.wikimedia.org/wiki/File:Self-portrait_of_Jeremiah_Gurney.jpg",
+            },
+          ].map((g) => (
+            <figure key={g.src} className="border-2 border-line bg-white p-3 dark:bg-slate-900">
+              <Image src={g.src} alt={g.alt} width={800} height={1200} loading="lazy" className="h-auto w-full object-contain" />
+              <figcaption className="mt-3">
+                <p className="font-semibold">{g.title}</p>
+                <p className="mt-1 text-sm text-muted-fg dark:text-slate-400">
+                  {g.credit} — <Link href={g.file} className="underline">source file</Link>
+                </p>
+                <Link href="/photo-enhancer?mode=colorize" className="mt-3 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
+                  Colorize a photo like this
+                </Link>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
