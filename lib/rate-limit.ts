@@ -7,15 +7,27 @@ import { Redis } from "@upstash/redis";
 
 type Check = { ok: boolean; remaining: number; limit: number };
 
-const upstash =
+// Upstash is used when configured; the limiter window is built per call
+// so the effective limit (single limits config) applies instead of a
+// hardcoded 10. The key prefix stays "ai-studio" so existing buckets
+// keep working across the change.
+const upstashConfigured = Boolean(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.fixedWindow(10, "1 d"),
-        analytics: false,
-        prefix: "ai-studio",
-      })
-    : null;
+);
+
+function upstashLimiter(limit: number): Ratelimit | null {
+  if (!upstashConfigured) return null;
+  try {
+    return new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.fixedWindow(limit, "1 d"),
+      analytics: false,
+      prefix: "ai-studio",
+    });
+  } catch {
+    return null;
+  }
+}
 
 // key -> { count, resetAt }
 const memory = new Map<string, { count: number; resetAt: number }>();
@@ -29,11 +41,11 @@ export function getClientIp(req: Request): string {
   return "unknown";
 }
 
-export async function checkAiRateLimit(ip: string, tool: string): Promise<Check> {
-  const limit = 10;
-  if (upstash) {
+export async function checkAiRateLimit(ip: string, tool: string, limit = 10): Promise<Check> {
+  const limiter = upstashLimiter(limit);
+  if (limiter) {
     try {
-      const res = await upstash.limit(`${tool}:${ip}`);
+      const res = await limiter.limit(`${tool}:${ip}`);
       return { ok: res.success, remaining: res.remaining, limit };
     } catch {
       // Fall through to the in-memory guard rather than failing open fully.
@@ -63,9 +75,8 @@ export function rateLimitHeaders(remaining: number, limit: number) {
 // supports this; Upstash has no peek operation (reading its internal keys
 // would be guessing at library internals), so Upstash guests get null and
 // the UI shows the daily limit without a live count instead of a wrong one.
-export async function peekAiRateLimit(ip: string, tool: string): Promise<{ remaining: number; limit: number } | null> {
-  if (upstash) return null;
-  const limit = 10;
+export async function peekAiRateLimit(ip: string, tool: string, limit = 10): Promise<{ remaining: number; limit: number } | null> {
+  if (upstashConfigured) return null;
   const entry = memory.get(`${tool}:${ip}`);
   if (!entry || entry.resetAt <= Date.now()) return { remaining: limit, limit };
   return { remaining: Math.max(0, limit - entry.count), limit };

@@ -85,6 +85,56 @@ export function LogoTool() {
   const [copied, setCopied] = useState<number | null>(null);
   const [limits, setLimits] = useState<Limits | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const micSupported = typeof window !== "undefined" && typeof navigator !== "undefined" && "mediaDevices" in navigator && typeof window.MediaRecorder !== "undefined";
+
+  async function toggleRecording() {
+    if (recording) {
+      recorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        if (blob.size === 0) return;
+        setTranscribing(true);
+        setError("");
+        try {
+          const form = new FormData();
+          form.append("audio", blob, "memo.webm");
+          if (token) form.append("turnstileToken", token);
+          const res = await fetch("/api/logo/transcribe", { method: "POST", body: form });
+          const data = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
+          if (!res.ok || !data?.text) {
+            setError(data?.error ?? "Could not transcribe that recording. Please type your prompt.");
+          } else {
+            setPrompt((p) => (p ? `${p} ${data.text}` : data.text ?? ""));
+          }
+        } catch {
+          setError("Could not transcribe that recording. Please type your prompt.");
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      recorderRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch {
+      setError("Microphone access was denied. Please type your prompt instead.");
+    }
+  }
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshLimits = useCallback(async () => {
@@ -240,6 +290,23 @@ export function LogoTool() {
               placeholder="Example: a friendly mountain coffee roaster, simple peak and coffee bean mark"
             />
             <p className="mt-1 text-sm text-muted-fg dark:text-slate-400">{prompt.length}/300 characters. Brand, character and celebrity names are refused.</p>
+            {micSupported && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  disabled={transcribing}
+                  aria-label={recording ? "Stop recording voice memo" : "Record a voice memo for your logo description"}
+                  aria-pressed={recording}
+                  className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-line bg-white px-3 text-sm font-medium hover:border-brand dark:bg-slate-900"
+                >
+                  {recording ? "⏹ Stop recording" : "🎤 Dictate prompt"}
+                </button>
+                <span role="status" className="text-sm text-muted-fg dark:text-slate-400">
+                  {recording ? "Recording… speak now, then stop." : transcribing ? "Transcribing…" : "Voice is transcribed into text you can edit."}
+                </span>
+              </div>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap gap-2" aria-label="Suggested prompts">
             {SUGGESTED.map((s) => (

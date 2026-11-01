@@ -94,6 +94,11 @@ export function SettingsForm({ initial }: { initial: Record<string, string> }) {
   const toggles: Array<[string, string]> = [
     ["maintenanceMode", "Maintenance mode"], ["logoEnabled", "Logo generator on"],
     ["enhanceEnabled", "Photo enhancer on"], ["adsEnabled", "Ads enabled (only after AdSense approval)"],
+    ["ai.provider.groq", "AI provider: Groq on"], ["ai.provider.gemini", "AI provider: Gemini on"],
+    ["ai.provider.openrouter", "AI provider: OpenRouter on"], ["ai.provider.nvidia", "AI provider: NVIDIA on"],
+    ["ai.provider.elevenlabs", "AI provider: ElevenLabs on"], ["ai.provider.replicate", "AI provider: Replicate on"],
+    ["ai.provider.huggingface", "AI provider: HuggingFace on (also needs a valid token + HF_ENABLED=true)"],
+    ["ai.provider.sharp", "Local Sharp pipeline on"],
   ];
   return (
     <form

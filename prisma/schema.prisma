@@ -252,3 +252,27 @@ model ErrorLog {
   path      String?
   createdAt DateTime @default(now())
 }
+
+// AI-Studio-only additive model (Nov 2026): per-call AI usage log for
+// the provider router (Phase 0). Same pattern as LogoGeneration: a
+// separate table, so every pre-existing query keeps working on a
+// database that has not had the new schema pushed yet — the usage
+// writers catch the missing-table error and the admin health page
+// shows an empty state. The owner pushes the schema ONCE from this
+// repo for logging + credit accounting to activate; quota counting
+// falls back to Job rows until then. Ignored by the sister site.
+model AiUsageLog {
+  id         String   @id @default(cuid())
+  provider   String
+  model      String
+  capability String
+  latencyMs  Int
+  success    Boolean
+  costUsd    Float    @default(0)
+  credits    Int      @default(0)
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([userId, createdAt])
+}

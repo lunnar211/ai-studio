@@ -6,6 +6,7 @@ import { checkAiRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limi
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getSessionSafe } from "@/lib/auth";
 import { countJobsToday, dailyQuota, getSetting, isIpBlocked, logJob } from "@/lib/settings";
+import { logoRequestBudgetFor } from "@/lib/limits";
 import { prisma } from "@/lib/prisma";
 import {
   LOGO_MODEL_FALLBACK,
@@ -15,6 +16,7 @@ import {
   isRefusal,
   validateLogoSvg,
 } from "@/lib/logo";
+import { anyProviderEnabled, routeText, type AiError } from "@/lib/ai/router";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,39 +29,37 @@ const Body = z.object({
   turnstileToken: z.string().max(2048).optional(),
 });
 
-type GenResult = { svg: string | null; refused: boolean; rateLimited: boolean };
+type GenResult = { svg: string | null; refused: boolean; rateLimited: boolean; provider: string | null };
 
+// Logo generation through the Phase 0 router: the router tries the
+// configured text providers in priority order (Groq first), retries
+// once per provider, and falls back across providers. The route still
+// validates + sanitizes every SVG itself — a provider answer is never
+// trusted blindly.
 async function generateOne(
-  apiKey: string,
-  model: string,
   system: string,
-  prompt: string
+  prompt: string,
+  onlyProvider?: "groq" | "openrouter" | "gemini",
+  model?: string
 ): Promise<GenResult> {
-  const miss: GenResult = { svg: null, refused: false, rateLimited: false };
+  const miss: GenResult = { svg: null, refused: false, rateLimited: false, provider: null };
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        temperature: 0.7,
-        max_tokens: 1500,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: `Logo concept: ${prompt}` },
-        ],
-      }),
-      signal: AbortSignal.timeout(25000),
+    const result = await routeText({
+      system,
+      user: `Logo concept: ${prompt}`,
+      temperature: 0.7,
+      maxTokens: 1500,
+      timeoutMs: 25000,
+      onlyProvider,
+      model,
     });
-    if (res.status === 429) return { ...miss, rateLimited: true };
-    if (!res.ok) return miss;
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content ?? "";
-    if (isRefusal(content)) return { ...miss, refused: true };
-    const cleaned = sanitizeSvg(content);
+    if (isRefusal(result.text)) return { ...miss, refused: true, provider: result.provider };
+    const cleaned = sanitizeSvg(result.text);
     if (!cleaned || !validateLogoSvg(cleaned)) return miss;
-    return { svg: cleaned, refused: false, rateLimited: false };
-  } catch {
+    return { svg: cleaned, refused: false, rateLimited: false, provider: result.provider };
+  } catch (err) {
+    const e = err as AiError;
+    if (e?.rateLimited) return { ...miss, rateLimited: true };
     return miss;
   }
 }
@@ -127,10 +127,11 @@ export async function POST(req: Request) {
       );
     }
   } else {
-    rl = await checkAiRateLimit(ip, "logo");
+    const guestBudget = await logoRequestBudgetFor("FREE");
+    rl = await checkAiRateLimit(ip, "logo", guestBudget);
     if (!rl.ok) {
       return NextResponse.json(
-        { error: "Daily free limit reached (10 logos per day). Please try again tomorrow, or upgrade to Premium for 100 per day." },
+        { error: `Daily free limit reached (${guestBudget} logos per day). Please try again tomorrow, or upgrade to Premium for 100 per day.` },
         { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
       );
     }
@@ -140,39 +141,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
+  // Any configured text provider can serve logos (Groq first via the
+  // router). With no provider key at all, say so honestly.
+  if (!(await anyProviderEnabled("text"))) {
     return NextResponse.json(
-      { error: "AI logo generation needs GROQ_API_KEY. Add it in Vercel env and redeploy." },
+      { error: "AI logo generation is not configured yet. The site owner needs to add a text provider key (for example GROQ_API_KEY) in Vercel and redeploy." },
       { status: 503, headers: rateLimitHeaders(rl.remaining, rl.limit) }
     );
   }
 
-  // 3 variants in parallel. Round 1 uses the primary (largest) model;
-  // round 2 fills any missing slots with the fallback model. Retrying is
-  // honest — it never fabricates a logo, it just asks the model again.
-  // A 429 is surfaced honestly instead of crashing or faking output.
+  // 3 variants in parallel through the router. Round 1 uses the default
+  // provider order; round 2 fills missing slots from a different
+  // provider (diversity) or the Groq fallback model. Retrying is honest
+  // — it never fabricates a logo, it just asks the model again. A 429
+  // is surfaced honestly instead of crashing or faking output.
   const system = buildLogoSystemPrompt(style, colors, brandName);
   const variants: string[] = [];
+  const variantProviders: string[] = [];
   let sawRefusal = false;
   let sawRateLimit = false;
   const round1 = await Promise.all([
-    generateOne(apiKey, LOGO_MODEL_PRIMARY, system, cleanedPrompt),
-    generateOne(apiKey, LOGO_MODEL_PRIMARY, system, cleanedPrompt),
-    generateOne(apiKey, LOGO_MODEL_PRIMARY, system, cleanedPrompt),
+    generateOne(system, cleanedPrompt),
+    generateOne(system, cleanedPrompt),
+    generateOne(system, cleanedPrompt),
   ]);
   for (const r of round1) {
-    if (r.svg) variants.push(r.svg);
+    if (r.svg) {
+      variants.push(r.svg);
+      if (r.provider) variantProviders.push(r.provider);
+    }
     if (r.refused) sawRefusal = true;
     if (r.rateLimited) sawRateLimit = true;
   }
   if (variants.length < 3) {
     const missing = 3 - variants.length;
+    // Diversity round: try another provider first, then the Groq
+    // fallback model. Each call still goes through the router.
     const round2 = await Promise.all(
-      Array.from({ length: missing }, () => generateOne(apiKey, LOGO_MODEL_FALLBACK, system, cleanedPrompt))
+      Array.from({ length: missing }, (_, i) =>
+        i === 0
+          ? generateOne(system, cleanedPrompt, "openrouter")
+          : generateOne(system, cleanedPrompt, "groq", LOGO_MODEL_FALLBACK)
+      )
     );
     for (const r of round2) {
-      if (r.svg) variants.push(r.svg);
+      if (r.svg) {
+        variants.push(r.svg);
+        if (r.provider) variantProviders.push(r.provider);
+      }
       if (r.refused) sawRefusal = true;
       if (r.rateLimited) sawRateLimit = true;
     }
@@ -218,7 +234,16 @@ export async function POST(req: Request) {
   }
   await logJob({ userId, tool: "logo", status: "SUCCESS", inputSummary: cleanedPrompt.slice(0, 120), costEstimate: parseFloat(await getSetting("groqCostPerJobUsd")) || 0.001 });
   return NextResponse.json(
-    { variants, svg: variants[0], remaining: rl.remaining, limit: rl.limit, model: LOGO_MODEL_PRIMARY },
+    {
+      variants,
+      svg: variants[0],
+      remaining: rl.remaining,
+      limit: rl.limit,
+      model: LOGO_MODEL_PRIMARY,
+      // Providers that actually produced variants (for the Details line
+      // in the UI — the honest provenance of each result).
+      providers: [...new Set(variantProviders)],
+    },
     { headers: rateLimitHeaders(rl.remaining, rl.limit) }
   );
 }

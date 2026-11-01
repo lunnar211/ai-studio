@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/money", label: "Money" },
   { href: "/admin/usage", label: "Usage & abuse" },
+  { href: "/admin/ai-health", label: "AI health" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/support", label: "Support inbox" },
   { href: "/admin/logs", label: "Logs" },

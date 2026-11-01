@@ -10,6 +10,21 @@ export const SETTING_DEFAULTS: Record<string, string> = {
   groqCostPerJobUsd: "0.001",
   replicateCostPerJobUsd: "0.01",
   apiBudgetUsd: "50",
+  // Daily AI spend cap (USD) across paid providers; the router stops
+  // starting new paid jobs at the cap and alerts at 80% (admin log).
+  aiDailySpendCapUsd: "10",
+  // Per-provider kill switches (SiteSetting ai.provider.<id>). Default
+  // "true" = the provider is used when its env key is present; setting
+  // one to "false" disables it instantly without a redeploy. These keys
+  // must be listed here so /api/admin/settings accepts them.
+  "ai.provider.groq": "true",
+  "ai.provider.gemini": "true",
+  "ai.provider.openrouter": "true",
+  "ai.provider.nvidia": "true",
+  "ai.provider.elevenlabs": "true",
+  "ai.provider.replicate": "true",
+  "ai.provider.huggingface": "true",
+  "ai.provider.sharp": "true",
   maintenanceMode: "false",
   announcement: "",
   adsEnabled: "false",
