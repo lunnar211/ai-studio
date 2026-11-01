@@ -8,7 +8,7 @@ export default function NotFound() {
         That page does not exist or moved. The tools are still right here:
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link href="/logo-generator" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-4 font-semibold text-white">
+        <Link href="/logo-generator" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
           Logo Generator
         </Link>
         <Link href="/photo-enhancer" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-line px-4 font-semibold">

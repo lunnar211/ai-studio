@@ -39,7 +39,7 @@ export default function TechStartupPage() {
         <li>“abstract monogram from the letters N and X” — monogram style, one colour.</li>
         <li>“simple data-flow mark for a software company” — geometric style, blue and slate.</li>
       </ul>
-      <Link href="/logo-generator" className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
+      <Link href="/logo-generator" className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white">
         Generate my startup logo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">

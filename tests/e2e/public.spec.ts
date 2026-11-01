@@ -25,7 +25,9 @@ test("tool pages render", async ({ page }) => {
 test("pricing, FAQ and use-case pages render", async ({ page }) => {
   await page.goto("/pricing");
   await expect(page.getByRole("heading", { name: "Pricing" })).toBeVisible();
-  await expect(page.getByText("Price shown at checkout")).toBeVisible();
+  // Paddle-configured envs show the checkout price note; unconfigured
+  // envs honestly say checkout is not configured (Upgrade hidden).
+  await expect(page.getByText(/Price shown at checkout|checkout is not configured yet/)).toBeVisible();
   await page.goto("/faq");
   await expect(page.getByRole("heading", { name: "Frequently asked questions" })).toBeVisible();
   await expect(page.getByText("Why was my prompt refused?")).toBeVisible();

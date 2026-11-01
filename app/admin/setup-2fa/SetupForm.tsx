@@ -38,7 +38,7 @@ export function SetupForm() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={setup.qr} alt="TOTP QR code for your authenticator app" width={220} height={220} />
               <p className="mt-2 break-all font-mono text-sm">Manual secret: {setup.secret}</p>
-              <Link href="/admin/verify-2fa" className="mt-3 inline-flex min-h-[44px] items-center border-2 border-brand bg-brand px-4 font-semibold text-white">
+              <Link href="/admin/verify-2fa" className="mt-3 inline-flex min-h-[44px] items-center border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
                 Verify a code →
               </Link>
             </div>

@@ -6,7 +6,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://challenges.cloudflare.com https://api.groq.com https://api.replicate.com https://*.supabase.co https://raw.githubusercontent.com https://cdn.jsdelivr.net",
+  "connect-src 'self' https://challenges.cloudflare.com https://*.supabase.co https://raw.githubusercontent.com https://cdn.jsdelivr.net",
   "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",

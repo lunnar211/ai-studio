@@ -33,7 +33,7 @@ export function CookieBanner() {
           We use only essential cookies plus optional analytics. Choose to accept analytics or decline and keep essentials only.
         </p>
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => choose("accepted")} className="min-h-[44px] rounded-[3px] border-2 border-brand bg-brand px-4 font-semibold text-white">Accept</button>
+          <button type="button" onClick={() => choose("accepted")} className="min-h-[44px] rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">Accept</button>
           <button type="button" onClick={() => choose("declined")} className="min-h-[44px] rounded-[3px] border-2 border-line bg-white px-4 font-semibold dark:bg-slate-900">Decline</button>
         </div>
       </div>

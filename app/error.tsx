@@ -9,7 +9,7 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
         The page hit an unexpected error. Your files were not changed. Try again, or go back to a tool.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <button type="button" onClick={reset} className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-4 font-semibold text-white">
+        <button type="button" onClick={reset} className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
           Try again
         </button>
         <Link href="/" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-line px-4 font-semibold">

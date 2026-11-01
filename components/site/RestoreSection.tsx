@@ -35,7 +35,7 @@ export function RestoreSection() {
         </li>
       </ol>
       <p className="mt-4">
-        <Link href="/photo-enhancer" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-4 font-semibold text-white">
+        <Link href="/photo-enhancer" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
           Restore a photo
         </Link>
       </p>

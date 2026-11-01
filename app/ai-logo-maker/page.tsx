@@ -106,7 +106,7 @@ export default function LogoMakerPage() {
       </ul>
       <Link
         href="/logo-generator"
-        className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white"
+        className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white"
       >
         Make my logo — free
       </Link>

@@ -29,6 +29,7 @@ import {
   type AiTextResult,
   type AiVisionAnalysis,
 } from "./types";
+import { releaseAiStartSlot, tryAcquireAiStartSlot } from "@/lib/concurrency";
 
 // Re-exported so routes can type-narrow router errors without
 // importing the types module separately.
@@ -364,11 +365,21 @@ export async function routeColorizeStart(opts: {
       503
     );
   }
+  if (!tryAcquireAiStartSlot()) {
+    throw new AiError(
+      "AI_RATE_LIMITED",
+      "The image service is busy right now. Please wait a minute and try again.",
+      429,
+      true
+    );
+  }
   try {
     const id = await provider.startColorize(opts.image);
     recordSuccess("replicate");
+    releaseAiStartSlot();
     return { predictionId: id };
   } catch (err) {
+    releaseAiStartSlot();
     const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start colorize.", 502);
     recordFailure("replicate", e.rateLimited);
     throw e;
@@ -400,11 +411,21 @@ export async function routeUpscaleStart(opts: {
       503
     );
   }
+  if (!tryAcquireAiStartSlot()) {
+    throw new AiError(
+      "AI_RATE_LIMITED",
+      "The image service is busy right now. Please wait a minute and try again.",
+      429,
+      true
+    );
+  }
   try {
     const id = await provider.startUpscale(opts.image, opts.scale, opts.faceEnhance ?? false);
     recordSuccess("replicate");
+    releaseAiStartSlot();
     return { predictionId: id };
   } catch (err) {
+    releaseAiStartSlot();
     const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start upscale.", 502);
     recordFailure("replicate", e.rateLimited);
     throw e;
@@ -435,11 +456,21 @@ export async function routeRestoreStart(opts: {
       503
     );
   }
+  if (!tryAcquireAiStartSlot()) {
+    throw new AiError(
+      "AI_RATE_LIMITED",
+      "The image service is busy right now. Please wait a minute and try again.",
+      429,
+      true
+    );
+  }
   try {
     const id = await provider.startRestore(opts.image);
     recordSuccess("replicate");
+    releaseAiStartSlot();
     return { predictionId: id };
   } catch (err) {
+    releaseAiStartSlot();
     const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start restoration.", 502);
     recordFailure("replicate", e.rateLimited);
     throw e;

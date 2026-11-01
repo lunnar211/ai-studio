@@ -39,7 +39,7 @@ export default function CoffeeShopPage() {
         <li>“warm bakery-style coffee shop with a steaming cup” — flat style, brown and cream.</li>
         <li>“minimal neighbourhood café, single-line cup mark” — minimal style, one colour.</li>
       </ul>
-      <Link href="/logo-generator" className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
+      <Link href="/logo-generator" className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white">
         Generate my coffee shop logo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">

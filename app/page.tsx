@@ -84,10 +84,10 @@ export default function Home() {
           enhancement that tells you honestly whether AI did the work.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/logo-generator" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-dark">
+          <Link href="/logo-generator" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white hover:bg-brand-dark">
             Generate a logo
           </Link>
-          <Link href="/photo-enhancer" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-accent bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-dark">
+          <Link href="/photo-enhancer" className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-accent-dark bg-accent-dark px-5 py-2.5 font-semibold text-white hover:bg-accent-dark">
             Enhance a photo
           </Link>
         </div>
@@ -141,7 +141,7 @@ export default function Home() {
           sold through Paddle — checkout is handled by Paddle as merchant of record, and no card
           details are ever entered on this site.
         </p>
-        <Link href="/pricing" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
+        <Link href="/pricing" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white">
           See Premium pricing
         </Link>
       </section>
