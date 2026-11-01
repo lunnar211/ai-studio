@@ -13,7 +13,6 @@ import { colorizeAttemptOrder, planMayUsePaidGpu } from "../lib/ai/tiers";
 import { grayscaleHint, shouldRefuseColorize } from "../lib/ai/grayscale-gate";
 import { analyzeImageLocal, GRAYSCALE_CHROMA_THRESHOLD } from "../lib/ai/image-analysis";
 import { LIMITS } from "../lib/limits";
-import { formatModelProgress } from "../lib/browser/deoldify";
 
 describe("free-tier routing (never paid GPU for free users)", () => {
   it("routes FREE server jobs to Space then Gemini, never to paid GPU", () => {
@@ -83,14 +82,5 @@ describe("faded/sepia fixture (the owner's case)", () => {
     const a = await analyzeImageLocal(bw);
     expect(a.isGrayscale).toBe(true);
     expect(shouldRefuseColorize({ isGrayscale: a.isGrayscale, colorizeAnyway: false })).toBe(false);
-  });
-});
-
-describe("browser model download copy (size corrected)", () => {
-  it("never quotes the wrong ~25 MB figure to users", () => {
-    const line = formatModelProgress({ stage: "downloading-model", receivedBytes: 1024 * 1024, totalBytes: 64 * 1024 * 1024 });
-    expect(line).not.toContain("25 MB");
-    expect(line).toContain("one-time");
-    expect(line).toContain("64.0 MB");
   });
 });

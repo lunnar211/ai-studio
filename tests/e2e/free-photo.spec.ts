@@ -5,27 +5,28 @@ import * as path from "node:path";
 import sharp from "sharp";
 
 /**
- * Free + unlimited photo UI (2026-11-01 fix): free paths show no credit
- * numbers, server-unavailable colorize offers the free browser path as
- * the primary action, and the grayscale gate is a hint with a
- * "Colorize anyway" override — never a block.
+ * Free + unlimited photo UI (server-only colorize): free paths show no
+ * credit numbers, server-unavailable colorize shows a plain
+ * server-not-set-up message with free Enhance as the fallback — never
+ * a browser path (the browser model was removed after it kept
+ * crashing tabs on memory) — and the grayscale gate is a hint with a
+ * "Colorize anyway" override, never a block.
  *
  * These specs run against a local server with no image provider
- * configured, so server colorize is honestly unavailable and the free
- * browser path is the primary action. They do NOT run the browser
- * colorize model (64 MB download, env-gated separately).
+ * configured, so server colorize is honestly unavailable.
  */
 
-test("colorize page shows free-unlimited copy and the free browser action", async ({ page }) => {
+test("colorize page shows free-unlimited copy and the server-not-set-up message, never a browser action", async ({ page }) => {
   await page.goto("/photo-enhancer?mode=colorize");
   await expect(page.getByText("Free — unlimited", { exact: false }).first()).toBeVisible();
   const body = await page.locator("body").innerText();
   expect(body).not.toMatch(/credits per day/i);
   expect(body).not.toMatch(/will use \d+ credit/i);
-  // Server colorize is unconfigured locally, so the free browser path
-  // is the primary action — not a red dead-end box.
-  await expect(page.getByRole("button", { name: "Colorize free in browser" })).toBeVisible();
+  // Server colorize is unconfigured locally, so the page says so
+  // plainly and offers free Enhance — not a browser colorize button.
   await expect(page.getByText(/Server colorize is not set up right now/).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Colorize free in browser" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Enhance photo — free, unlimited" })).toBeVisible();
 });
 
 test("faded sepia photo gets a Colorize anyway override, not a block", async ({ page }) => {
@@ -54,7 +55,9 @@ test("faded sepia photo gets a Colorize anyway override, not a block", async ({ 
     // The override clears the hint and leaves the free action usable.
     await page.getByRole("button", { name: "Colorize anyway" }).click();
     await expect(page.getByRole("button", { name: "Colorize anyway" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Colorize free in browser" })).toBeVisible();
+    // The override clears the hint; with the server unconfigured the
+    // usable free action is Enhance (no browser colorize exists now).
+    await expect(page.getByRole("button", { name: "Enhance photo — free, unlimited" })).toBeVisible();
   } finally {
     fs.rmSync(tmp, { force: true });
   }
@@ -65,37 +68,4 @@ test("pricing page states the free-unlimited model", async ({ page }) => {
   await expect(page.getByText(/Unlimited photo enhance, colorize and restore/)).toBeVisible();
   const body = await page.locator("body").innerText();
   expect(body).not.toMatch(/photo credits per day/i);
-});
-
-// Real-weights browser colorize: downloads the ~64 MB model and runs
-// ONNX inference in the browser. SKIPPED by default — it needs a
-// browser with internet to the model host, which the sandbox does not
-// have. Run it on a real machine with:
-//   E2E_BROWSER_COLORIZE=1 npx playwright test tests/e2e/free-photo.spec.ts -g "real-weights"
-test("real-weights browser colorize on a black & white photo", async ({ page }) => {
-  test.skip(process.env.E2E_BROWSER_COLORIZE !== "1", "needs a browser with internet to the model host");
-  const tmp = path.join(os.tmpdir(), `ai-studio-bw-${process.pid}.png`);
-  const w = 64;
-  const h = 64;
-  const raw = Buffer.alloc(w * h * 3);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const o = (y * w + x) * 3;
-      const v = 60 + Math.round((x / w) * 120);
-      raw[o] = v;
-      raw[o + 1] = v;
-      raw[o + 2] = v;
-    }
-  }
-  await sharp(raw, { raw: { width: w, height: h, channels: 3 } }).png().toFile(tmp);
-  try {
-    await page.goto("/photo-enhancer?mode=colorize");
-    await page.getByLabel("Choose an image file").setInputFiles(tmp);
-    await page.getByRole("button", { name: "Colorize free in browser" }).click();
-    // Model download (~64 MB, one-time) + inference; generous timeout.
-    await expect(page.getByAltText("Photo after processing")).toBeVisible({ timeout: 180_000 });
-    await expect(page.getByText(/Colorized on your device/)).toBeVisible();
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
 });

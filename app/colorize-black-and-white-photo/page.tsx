@@ -4,18 +4,18 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Colorize Black-and-White Photos — Free AI Photo Colorization",
   description:
-    "Turn an old black-and-white photo into colour, free, in your browser or on our server. Upload a JPG, PNG or WebP up to 10 MB. Colours are estimates, not the original colours — every result is labelled honestly.",
+    "Turn an old black-and-white photo into colour, free, on our server. Upload a JPG, PNG or WebP up to 10 MB. Colours are estimates, not the original colours — every result is labelled honestly.",
   openGraph: {
     title: "Colorize Black-and-White Photos | AI Studio",
     description:
-      "Turn an old black-and-white photo into colour, free. Browser colorization is unlimited and your photo never leaves your device.",
+      "Turn an old black-and-white photo into colour, free, on our server.",
     images: [{ url: "/og-colorize.jpg", width: 1200, height: 630, alt: "AI Studio — colorize black-and-white photos" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Colorize Black-and-White Photos | AI Studio",
     description:
-      "Turn an old black-and-white photo into colour, free. Browser colorization is unlimited and your photo never leaves your device.",
+      "Turn an old black-and-white photo into colour, free, on our server.",
     images: ["/og-colorize.jpg"],
   },
 };
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "Is colorizing really free?",
-    a: "Yes. Colorize in your browser is unlimited and free, and your photo never leaves your device. Server colorize is also free and unlimited via the free server route; Premium adds faster paid-GPU processing.",
+    a: "Yes. Server colorize is free and unlimited via the free server route; Premium adds faster paid-GPU processing.",
   },
   {
     q: "What photos work best?",
@@ -39,7 +39,7 @@ const faqs = [
   },
   {
     q: "Are my photos kept or shared?",
-    a: "No. Server uploads are processed and deleted immediately after processing, and are never listed or shared. In browser mode the photo never leaves your device at all.",
+    a: "No. Server uploads are processed and deleted immediately after processing, and are never listed or shared.",
   },
 ];
 
@@ -111,7 +111,7 @@ export default function ColorizePage() {
         Colorize my photo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free: unlimited colorize via the free routes. Browser colorization is unlimited and free, and your photo never leaves your device.
+        Free: unlimited colorize via the free server route.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

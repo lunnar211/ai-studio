@@ -1,8 +1,7 @@
 // Public capability flags for the photo tools: booleans ONLY — never
 // a key, a model list, a provider name, or anything that reveals
 // configuration (P0 fix). The UI uses these to show honest states
-// and to offer the free browser path first when the server is
-// unavailable, instead of dead buttons.
+// instead of dead buttons.
 //
 // Colorize additionally requires the PhotoJob table: async jobs have
 // nowhere to live without it, so the endpoint probes the table (one
@@ -65,9 +64,9 @@ export async function GET() {
     // Generic reason only — never which tier is missing or why.
     colorizeBlockedReason: !serverColorize ? "Colorize is unavailable right now." : null,
     serverColorize,
-    browserColorize: true,
-    // Free photos are unlimited via the free routes (browser + free
-    // server). The UI shows "Free — unlimited", never a credit count.
+    browserColorize: false,
+    // Free photos are unlimited via the free server route.
+    // The UI shows "Free — unlimited", never a credit count.
     freeUnlimited: true,
     // Neutral flag: the fast server path is available for Premium.
     // It names no provider, model, or setting.

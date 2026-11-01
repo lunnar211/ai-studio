@@ -9,7 +9,7 @@
 // (GET /api/photo/jobs/[id]) because image jobs can outlast the
 // 60s Vercel function limit. This route only validates, prepares the
 // AI-sized input, starts the FIRST prediction, and stores the job.
-// Credits (FREE + UNLIMITED model): free jobs (Space, browser, Sharp)
+// Credits (FREE + UNLIMITED model): free jobs (Space, Sharp)
 // cost 0 and are never budget-checked; only a Premium paid-GPU start
 // consumes the Premium GPU budget, and over budget Premium falls back
 // to the free Space instead of blocking. Free users never reach paid
@@ -76,8 +76,8 @@ const Body = z.object({
   colorizeAnyway: z.enum(["true", "false"]).default("false"),
 });
 
-const GENERIC_UNAVAILABLE = "Colorize is unavailable on the server right now. Try the free browser colorize instead, or use Enhance only.";
-const GENERIC_FAILED = "Colorize is unavailable on the server right now. Try the free browser colorize instead, or use Enhance only.";
+const GENERIC_UNAVAILABLE = "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.";
+const GENERIC_FAILED = "Colorize is unavailable right now. Please try again later. Free Enhance can still sharpen and upscale this photo.";
 
 export async function POST(req: Request) {
   if ((await getSetting("enhanceEnabled")) !== "true") {
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
   // Restore colorizes grayscale photos and skips colorize for colour ones.
   // The explicit "Colorize anyway" override also counts here, so a
   // user who knows their faded/sepia photo is B&W gets colorize on
-  // the server path too, not just the browser path.
+  // the server path too.
   const willColorize =
     opts.mode === "colorize" || local.isGrayscale || opts.colorizeAnyway === "true";
 
@@ -209,12 +209,11 @@ export async function POST(req: Request) {
   if (!prisma) {
     // No database: async colorize jobs have nowhere to live, so the
     // server path is honestly unavailable — but never a dead end:
-    // the UI offers the free browser path (or free Enhance for colour
-    // restore, which has nothing to colorize).
+    // the UI offers free Enhance.
     return NextResponse.json(
       {
         error: GENERIC_UNAVAILABLE,
-        freeAlternative: mode === "restore" && !willColorize ? "enhance" : "browser",
+        freeAlternative: "enhance",
       },
       { status: 503 }
     );
@@ -224,7 +223,7 @@ export async function POST(req: Request) {
   //
   // TIER-AWARE CREDITS (FREE + UNLIMITED model): credits are decided by
   // the tier that ACTUALLY starts, not upfront. Free jobs (Space,
-  // browser, Sharp) cost 0 credits and are never budget-checked.
+  // Sharp) cost 0 credits and are never budget-checked.
   // Only a Premium paid-GPU start consumes the GPU budget — and when
   // that budget is reached, Premium falls back to the free Space
   // instead of blocking. Free users never reach the paid-GPU
@@ -301,9 +300,7 @@ export async function POST(req: Request) {
         // Server tiers in plan order (Free: Space, then Gemini;
         // Premium: paid GPU first, then Space, then Gemini). A failed
         // tier falls through to the next; no dead job is stored if
-        // all fail. (Tier A, browser colorize, runs client-side:
-        // first for Free users, as a fallback for Premium users;
-        // see tiers.ts.) The Gemini tier records only an intent
+        // all fail. The Gemini tier records only an intent
         // here — the synchronous Nano Banana call runs on the
         // job's first COLORIZING poll, so this POST stays fast.
         const allSettings = await getSettings();
@@ -353,7 +350,7 @@ export async function POST(req: Request) {
         }
         if (!tierProvider) {
           if (sawNotConfigured) {
-            return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "browser" }, { status: 503 });
+            return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "enhance" }, { status: 503 });
           }
           console.error("photo/colorize: all colorize tiers failed", lastErr);
           throw lastErr ?? new Error("No colorize tier started.");
@@ -370,7 +367,7 @@ export async function POST(req: Request) {
   } catch (err) {
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {
-      return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "browser" }, { status: 503 });
+      return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "enhance" }, { status: 503 });
     }
     if (e?.code === "AI_BUDGET_REACHED") {
       return NextResponse.json({ error: "The daily AI budget is reached. Please try again tomorrow." }, { status: 503 });
@@ -379,7 +376,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "The image service is busy right now. Please wait a minute and try again." }, { status: 429 });
     }
     console.error("photo/colorize: job start failed", err);
-    return NextResponse.json({ error: GENERIC_FAILED, freeAlternative: "browser" }, { status: 502 });
+    return NextResponse.json({ error: GENERIC_FAILED, freeAlternative: "enhance" }, { status: 502 });
   }
 
   // Credits follow the tier that actually started: paid GPU charges
@@ -423,7 +420,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: GENERIC_UNAVAILABLE,
-        freeAlternative: mode === "restore" && !willColorize ? "enhance" : "browser",
+        freeAlternative: "enhance",
       },
       { status: 503 }
     );

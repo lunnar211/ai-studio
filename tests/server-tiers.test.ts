@@ -1,23 +1,13 @@
-// Tier A (browser DeOldify) + Tier B (Space client) + tier ordering.
+// Server tier ordering + Space client + Lab merge helpers.
 //
-// The pure tensor/Lab/SSE helpers are tested here. The live ONNX
-// session itself cannot run in vitest (no model file, no browser);
-// the first real browser run is a documented manual test (see
-// SETUP.md), and the code paths around it (worker spawn failure,
-// model-download failure) fall back honestly instead of faking.
+// Formerly tests/browser-tiers.test.ts: the DeOldify tensor and
+// onnxruntime-web version sections were deleted with the browser
+// model (removed after it kept crashing tabs on memory). What
+// remains is server-only: the Space client, the server tier order,
+// and the Lab helpers (lib/browser/lab.ts is still used by tests
+// and kept).
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import {
-  DEOLDIFY_INPUT_SIZE,
-  DEOLDIFY_MODEL_SIZE_ESTIMATE,
-  ORT_WEB_VERSION,
-  nchwToRgba,
-  ortWasmPaths,
-  rgbaToNchw,
-  runDeoldifyWithTensor,
-} from "../lib/browser/deoldify-core";
 import { labToRgb, mergeLabLuminance, rgbToLab } from "../lib/browser/lab";
 import { colorizeAttemptOrder } from "../lib/ai/tiers";
 import {
@@ -28,46 +18,7 @@ import {
   spaceHost,
 } from "../lib/ai/gradio";
 
-describe("DeOldify tensor conversion (reference spec)", () => {
-  it("preprocesses RGBA to NCHW with raw 0-255 values (no /255)", () => {
-    // 2x1 image: red pixel, green pixel.
-    const rgba = new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255]);
-    const nchw = rgbaToNchw(rgba);
-    expect(nchw.length).toBe(6);
-    expect(Array.from(nchw)).toEqual([255, 0, 0, 255, 0, 0]);
-  });
-  it("postprocesses NCHW to RGBA with clamping, rounding, opaque alpha", () => {
-    const tensor = new Float32Array([300.6, -5.4, 10, 20, 30, 40]);
-    const rgba = nchwToRgba(tensor, 2, 1);
-    // NCHW: R=[300.6,-5.4]->[255,0], G=[10,20], B=[30,40].
-    expect(Array.from(rgba)).toEqual([255, 10, 30, 255, 0, 20, 40, 255]);
-  });
-  it("runs inference through a stub session with the right feed name and dims", async () => {
-    let seenFeeds: Record<string, unknown> | null = null;
-    const session = {
-      run: async (feeds: Record<string, unknown>) => {
-        seenFeeds = feeds;
-        // Echo a solid-blue 256x256 output.
-        const n = DEOLDIFY_INPUT_SIZE * DEOLDIFY_INPUT_SIZE;
-        const data = new Float32Array(n * 3);
-        data.fill(0, 0, n);
-        data.fill(0, n, 2 * n);
-        data.fill(255, 2 * n, 3 * n);
-        return { out: { data } };
-      },
-    };
-    const rgba256 = new Uint8ClampedArray(DEOLDIFY_INPUT_SIZE * DEOLDIFY_INPUT_SIZE * 4).fill(128);
-    const out = await runDeoldifyWithTensor(session, (data, dims) => ({ data, dims }), rgba256);
-    expect(seenFeeds).not.toBeNull();
-    const feed = (seenFeeds as unknown as Record<string, { data: Float32Array; dims: number[] }>).input;
-    expect(feed.dims).toEqual([1, 3, 256, 256]);
-    expect(feed.data.length).toBe(256 * 256 * 3);
-    // Output pixel 0 is blue, alpha opaque.
-    expect(Array.from(out.slice(0, 4))).toEqual([0, 0, 255, 255]);
-  });
-});
-
-describe("browser Lab merge", () => {
+describe("Lab merge", () => {
   it("keeps the original L and scales model chroma by intensity", () => {
     const orig = new Uint8Array([120, 120, 120]); // grey
     const model = new Uint8Array([200, 30, 30]); // reddish
@@ -88,22 +39,6 @@ describe("browser Lab merge", () => {
     const red = new Uint8Array([200, 30, 30]);
     const backRed = labToRgb(rgbToLab(red, 1), 1);
     expect(backRed[0]).toBeGreaterThan(backRed[1]);
-  });
-});
-
-describe("onnxruntime-web version pin", () => {
-  it("ORT_WEB_VERSION matches the installed package (wasm CDN stays in sync)", () => {
-    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as {
-      dependencies: Record<string, string>;
-    };
-    const installed = (pkg.dependencies["onnxruntime-web"] ?? "").replace(/^[^\d]*/, "");
-    expect(ORT_WEB_VERSION).toBe(installed);
-    expect(ortWasmPaths()).toContain(ORT_WEB_VERSION);
-  });
-  it("documents the ~64 MB model size estimate", () => {
-    // Measured 2026-11-01 from the model host (64,020,138 bytes);
-    // the old ~25 MB figure was wrong and misled the download UI.
-    expect(DEOLDIFY_MODEL_SIZE_ESTIMATE).toBe(64 * 1024 * 1024);
   });
 });
 

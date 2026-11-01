@@ -42,10 +42,9 @@ export default async function PricingPage() {
           <p className="mt-2 text-3xl font-bold">$0</p>
           <ul className="mt-4 list-disc space-y-2 pl-6">
             <li>Unlimited logo requests (each request gives 3 variants)</li>
-            <li>Unlimited photo enhance, colorize and restore via the free routes (browser colorize + free server route + local sharpening), no daily cap, no account needed</li>
+            <li>Unlimited photo enhance, colorize and restore via the free server route + local sharpening, no daily cap, no account needed</li>
             <li>Logo downloads: SVG and 1024px PNG</li>
             <li>Photo downloads: PNG, JPG, or WebP</li>
-            <li>Free browser colorize (unlimited, photo stays on your device)</li>
             <li>Upscaling up to 2x / 2048px</li>
             <li>No account, no payment details</li>
           </ul>

@@ -1,23 +1,21 @@
 // Free-first tier ordering for server colorize jobs.
 //
-// Tier A (browser) runs client-side and is NOT in this server order:
-// the EnhancerTool offers it first for Free users and as a fallback
-// for Premium users when the server tiers fail.
+// There is no browser tier: colorize runs on the server only.
+// (The browser model was removed after it kept crashing tabs.)
 //
 // Server order (FREE + UNLIMITED model, 2026-11-01):
 //   Free    -> Space, then Gemini. Free users are NEVER routed to
 //             paid GPU (Replicate): every paid-GPU photo bills the
 //             owner per run, so sending unlimited free traffic to GPU
 //             would drain his money. When the Space is unavailable,
-//             free users fall back to the free browser path (Tier A)
-//             — never to GPU, never to a block.
+//             free users fall through to Gemini — never to GPU,
+//             never to a block.
 //   Premium -> Replicate (paid GPU, fast), then Space (free fallback
 //             when GPU is unavailable or its budget is reached),
 //             then Gemini.
 // The Space is the owner's own ZeroGPU Space: free in money, but its
 // daily GPU minutes are scarce — when its quota is exhausted, Space
 // jobs fail honestly and the user falls through to the next option.
-// Browser colorize is unlimited and costs nothing, for everyone.
 //
 // GEMINI EXCEPTION (owner-authorized 2026-11-01, "use Nano Banana
 // to colorize"): Gemini Nano Banana (primary gemini-nano-banana-2.1,

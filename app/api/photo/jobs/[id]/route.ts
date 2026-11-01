@@ -157,8 +157,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // not fail the job: return the current state and let the client retry.
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {
-      await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+      await failJob(job, "AI_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
     }
     console.error("photo/jobs: transient poll error", err);
     return NextResponse.json(publicState(job));
@@ -202,8 +202,8 @@ async function advanceRestoring(job: JobRow, plan: "FREE" | "PREMIUM") {
   }
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
   }
   let pred;
   try {
@@ -325,8 +325,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       polled = await pollSpaceColorize(job.predictionId);
     } catch (err) {
       if (err instanceof SpaceError) {
-        await failJob(job, "SPACE_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+        await failJob(job, "SPACE_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
       }
       // Transient poll error: return current state, client retries.
       return NextResponse.json(publicState(job));
@@ -382,8 +382,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       modelUsed = out.model;
     } catch (err) {
       if ((err as { code?: string })?.code === "AI_NOT_CONFIGURED") {
-        await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+        await failJob(job, "AI_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
       }
       console.error("photo/jobs: gemini colorize error", err);
       return NextResponse.json(publicState(job));
@@ -397,8 +397,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
   // Tier C: image-pool colorize.
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
   }
   let pred;
   try {
@@ -528,8 +528,8 @@ async function advanceUpscaling(job: JobRow, plan: "FREE" | "PREMIUM") {
   }
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo." }));
   }
   let pred;
   try {

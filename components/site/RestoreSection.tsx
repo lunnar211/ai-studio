@@ -26,7 +26,7 @@ export function RestoreSection() {
         <li className="border-2 border-line bg-white p-5 dark:bg-slate-900">
           <Wand2 size={22} aria-hidden="true" />
           <h3 className="mt-2 text-lg font-bold">2. AI restores it</h3>
-          <p className="mt-1 text-muted-fg dark:text-slate-300">Colorize runs free in your browser (photo stays on your device) or on the server. Watch real progress, cancel anytime.</p>
+          <p className="mt-1 text-muted-fg dark:text-slate-300">Colorize runs on the server. Watch real progress, cancel anytime.</p>
         </li>
         <li className="border-2 border-line bg-white p-5 dark:bg-slate-900">
           <Download size={22} aria-hidden="true" />

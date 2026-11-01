@@ -3,7 +3,8 @@
 // Same math as lib/ai/lab.ts, but over plain typed arrays so it runs in
 // the browser and in a Web Worker. Layout: RGB interleaved Uint8;
 // Lab as Float32Array, L in 0..100, a/b in about -128..127.
-// The browser colorize path uses this to LAB-merge: keep the ORIGINAL
+// Kept for tests (the browser model that used it is gone; the server
+// merge lives in lib/ai/lab.ts). The LAB-merge rule: keep the ORIGINAL
 // photo's L channel (detail never comes from the model) and take only
 // a/b from the model output, scaled by intensity.
 

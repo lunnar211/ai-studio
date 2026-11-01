@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited.`,
+    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free server route + local sharpening, with no account and no payment details. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited.`,
   },
   {
     q: "What do I get from the logo generator?",
@@ -29,11 +29,11 @@ const FAQS = [
   },
   {
     q: "How does the photo enhancer work?",
-    a: "Upload a JPG, PNG, or WebP image up to 10 MB. Pick Enhance, Colorize, or Restore + Colorize. Colorize adds estimated colours and then upscales; Restore + Colorize repairs faces and scratches first. Colorize can also run free in your browser (photo stays on your device). Every result carries a quality badge — AI Enhanced or Standard — and colorized photos always say colours are estimated. Download the result as PNG, JPG, or WebP, and drag the slider to compare before and after.",
+    a: "Upload a JPG, PNG, or WebP image up to 10 MB. Pick Enhance, Colorize, or Restore + Colorize. Colorize adds estimated colours and then upscales; Restore + Colorize repairs faces and scratches first. Every result carries a quality badge — AI Enhanced or Standard — and colorized photos always say colours are estimated. Download the result as PNG, JPG, or WebP, and drag the slider to compare before and after.",
   },
   {
     q: "What happens to my photos and prompts?",
-    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case), except browser colorize, where the photo never leaves your device. We never list or share them. Prompts are sent to our text-generation service to produce logos; they are not used by us to train models. See the Privacy Policy for the full list of services that can receive data and their retention rules.",
+    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case). We never list or share them. Prompts are sent to our text-generation service to produce logos; they are not used by us to train models. See the Privacy Policy for the full list of services that can receive data and their retention rules.",
   },
   {
     q: "How do I pay for Premium?",
