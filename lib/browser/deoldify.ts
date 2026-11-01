@@ -117,6 +117,18 @@ function makeCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: Can
   return { canvas, ctx };
 }
 
+/**
+ * Release a canvas's backing store immediately instead of waiting
+ * for garbage collection: setting width to 0 frees the backing
+ * store in Chromium. Use only for canvases whose pixels have
+ * already been copied out (getImageData) and are never drawn from
+ * again — the canvas is unusable afterwards.
+ */
+export function releaseCanvas(canvas: HTMLCanvasElement): void {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
 function stripAlpha(rgba: Uint8ClampedArray): Uint8Array {
   const pixels = rgba.length / 4;
   const rgb = new Uint8Array(pixels * 3);
@@ -188,7 +200,7 @@ async function runOnMainThread(
     InferenceSession: {
       create: (
         model: Uint8Array,
-        options?: { executionProviders?: string[] }
+        options?: { executionProviders?: string[]; enableCpuMemArena?: boolean }
       ) => Promise<{ run: (feeds: Record<string, unknown>) => Promise<Record<string, { data: Float32Array }>> }>;
     };
     env: { wasm: { wasmPaths?: string } };
@@ -204,6 +216,8 @@ async function runOnMainThread(
   onProgress({ stage: "colorizing" });
   const session = await ort.InferenceSession.create(new Uint8Array(model), {
     executionProviders: ["webgpu", "wasm"],
+    // No CPU memory arena — see the worker's note (same measurement).
+    enableCpuMemArena: false,
   });
   return runDeoldifyWithTensor(
     session,
@@ -227,6 +241,11 @@ export async function colorizeInBrowser(
   const orig = makeCanvas(outW, outH);
   decoded.drawTo(orig.ctx, outW, outH);
   const origRgba = orig.ctx.getImageData(0, 0, outW, outH).data;
+  // The original's pixels are copied out: free the canvas backing
+  // store NOW, before the model run allocates its peak memory,
+  // instead of holding ~13 MB through inference (2026-11-01 repro:
+  // the model run is the peak, so every MB held through it counts).
+  releaseCanvas(orig.canvas);
 
   // Model input: squashed to 256x256 (the model's fixed input size),
   // then desaturated to TRUE greyscale before inference. DeOldify
@@ -274,6 +293,12 @@ export async function colorizeInBrowser(
   up.ctx.imageSmoothingQuality = "high";
   up.ctx.drawImage(tmp.canvas, 0, 0, outW, outH);
   const upRgba = up.ctx.getImageData(0, 0, outW, outH).data;
+  // Upscaled pixels are copied out: free both canvases before the
+  // merge + PNG encode, so the encode spike does not stack on top
+  // of them. (The small 256px canvas is NOT released: the
+  // main-thread fallback re-reads it if the worker failed.)
+  releaseCanvas(up.canvas);
+  releaseCanvas(tmp.canvas);
 
   // LAB merge: original L + model a/b, intensity-scaled, in bands
   // (see mergeColorizeBanded: exact output, far lower peak memory

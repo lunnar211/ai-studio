@@ -35,7 +35,7 @@ type OrtModule = {
   InferenceSession: {
     create: (
       model: Uint8Array,
-      options?: { executionProviders?: string[] }
+      options?: { executionProviders?: string[]; enableCpuMemArena?: boolean }
     ) => Promise<OrtSession>;
   };
   env: { wasm: { wasmPaths?: string } };
@@ -65,6 +65,14 @@ async function ensureSession(id: number): Promise<OrtSession> {
     });
     const session = await ort.InferenceSession.create(new Uint8Array(model), {
       executionProviders: ["webgpu", "wasm"],
+      // No CPU memory arena: ORT's arena retains its peak allocation
+      // for the session's life, and this graph's peak is large
+      // (measured 2026-11-01: browser tab 1387 MB with the arena,
+      // ~1060-1140 MB without it, same output — the arena only
+      // changes allocation strategy, never the math). Without it,
+      // freed tensor memory returns promptly instead of sitting in
+      // the renderer's peak while the merge still has to run.
+      enableCpuMemArena: false,
     });
     return session;
   })();
