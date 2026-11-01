@@ -20,9 +20,10 @@
 // Browser colorize is unlimited and costs nothing, for everyone.
 //
 // GEMINI EXCEPTION (owner-authorized 2026-11-01, "use Nano Banana
-// to colorize"): Gemini Nano Banana (gemini-2.5-flash-image) IS a
-// paid-per-photo tier (~$0.039/image on the owner's Gemini bill),
-// and it IS in the free order — because the owner explicitly asked
+// to colorize"): Gemini Nano Banana (primary gemini-nano-banana-2.1,
+// Lite fallback gemini-3.1-flash-lite-image, ~$0.041/image typical
+// at 1K on the owner's Gemini bill) IS a paid-per-photo tier, and
+// it IS in the free order — because the owner explicitly asked
 // for it as the working server path, and because the Space is not
 // configured yet, Gemini is the tier that actually runs today.
 // Space stays FIRST whenever it is configured, so free money is
@@ -30,6 +31,15 @@
 // "free unlimited" server colorize now has a per-photo owner cost
 // while the Space is unconfigured — if usage spikes, the next step
 // is a cap, not silent billing. Replicate GPU stays Premium-only.
+//
+// QUOTA NOTE (honest gap, 2026-11-01): when the Space's daily GPU
+// minutes run out, Space jobs fail and the order falls through to
+// Gemini — there is no quota-specific user message yet, because
+// the Space's real quota-exhaustion error text is unverified
+// (no Space is live to read it from). Detecting it by guessing a
+// string would misfire; the message gets added once the live
+// Space's error is seen. The older gemini-2.5-flash-image default
+// was retired by this same research round (legacy model).
 
 export type ColorizeServerTier = "space" | "replicate" | "gemini";
 

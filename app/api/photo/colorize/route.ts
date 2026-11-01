@@ -230,7 +230,7 @@ export async function POST(req: Request) {
   // instead of blocking. Free users never reach the paid-GPU
   // (Replicate) branch at all. The Gemini tier is the one exception
   // to "free costs nothing": it bills the owner's Gemini account
-  // ~$0.039 per photo (owner-authorized 2026-11-01, see tiers.ts),
+  // ~$0.041 per photo (owner-authorized 2026-11-01, see tiers.ts),
   // recorded as the job's cost estimate — never as user credits.
   //
   // Restore mode: the restore prediction runs FIRST (stage

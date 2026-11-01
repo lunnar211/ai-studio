@@ -47,6 +47,7 @@ import {
   geminiColorize,
   geminiImageConfigured,
   geminiImageModel,
+  closestGeminiAspectRatio,
 } from "@/lib/ai/adapters/gemini-image";
 import { colorizeAttemptOrder } from "@/lib/ai/tiers";
 import type { AiProviderId } from "@/lib/ai/types";
@@ -360,12 +361,25 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "That job lost its reference. Please run it again." }));
     }
     let modelOut: Buffer;
+    let modelUsed: string | undefined;
     try {
+      // Match the model's output shape to the input photo (never a
+      // forced square): dimensions come from the prepared input the
+      // job already stores; any read failure just omits the ratio.
+      let aspectRatio: string | undefined;
+      try {
+        const meta = await sharp(Buffer.from(job.inputData, "base64")).metadata();
+        aspectRatio = closestGeminiAspectRatio(meta.width, meta.height) ?? undefined;
+      } catch {
+        aspectRatio = undefined;
+      }
       const out = await geminiColorize({
         image: Buffer.from(job.inputData, "base64"),
         mime: job.inputMime || "image/jpeg",
+        aspectRatio,
       });
       modelOut = out.buffer;
+      modelUsed = out.model;
     } catch (err) {
       if ((err as { code?: string })?.code === "AI_NOT_CONFIGURED") {
         await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
@@ -376,7 +390,7 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
     }
     return await afterColorizeSuccess(job, modelOut, plan, {
       provider: "gemini",
-      model: job.model ?? geminiImageModel(),
+      model: modelUsed ?? job.model ?? geminiImageModel(),
       extraCost: GEMINI_IMAGE_COST_PER_IMAGE,
     });
   }

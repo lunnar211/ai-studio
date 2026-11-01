@@ -17,7 +17,7 @@ import { formatModelProgress } from "../lib/browser/deoldify";
 
 describe("free-tier routing (never paid GPU for free users)", () => {
   it("routes FREE server jobs to Space then Gemini, never to paid GPU", () => {
-    // Owner-authorized 2026-11-01: Nano Banana (Gemini, ~$0.039/image
+    // Owner-authorized 2026-11-01: Nano Banana (Gemini, ~$0.041/image
     // on the owner's bill) is the server fallback when the free Space
     // is unconfigured. The hard rule stays: FREE never touches
     // Replicate paid GPU, and the free Space stays first.
