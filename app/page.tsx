@@ -224,6 +224,19 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <section aria-label="Android app" className="mt-12 border-2 border-line bg-white p-6 dark:bg-slate-900">
+        <h2 className="text-2xl font-bold">AI Studio on Android</h2>
+        <p className="mt-2 text-muted-fg dark:text-slate-400">
+          The Android app is this website in an app: the same logo maker and photo tools, the same login, the same data. Download the APK, allow install from unknown sources once on your phone, then sign in with your usual account.
+        </p>
+        <a href="https://github.com/lunnar211/android-apps/releases/latest/download/ai-studio-debug.apk" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
+          Download for Android (.apk)
+        </a>
+        <p className="mt-3 text-sm">
+          <a href="https://github.com/lunnar211/android-apps/releases" className="underline">All Android apps on GitHub</a>
+        </p>
+      </section>
     </div>
   );
 }
