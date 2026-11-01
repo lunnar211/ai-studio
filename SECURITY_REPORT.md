@@ -92,6 +92,31 @@ Pre-existing tool code was reviewed where it interacts with new code.
 Date: November 2026. Method: manual OWASP Top 10 walkthrough, live curl
 tests against a local production build, unit tests, and greps below.
 
+## ADDENDUM 2026-11-01 — logo quality + history release (this change)
+
+New attack surface reviewed: brand-name `<text>` in SVGs, a new `LogoGeneration`
+table, new `/api/account/jobs` routes, a guest counter peek, and client-side
+SVG→canvas PNG conversion. Findings:
+
+- **SVG `<text>` (PASS):** the sanitizer allows `<text>` with 8 safe attributes only
+  (`x, y, fill, font-family, font-size, font-weight, text-anchor, opacity`); handlers,
+  `href`, and external references are still stripped; text nodes are copied only inside
+  `<text>`, capped at 120 chars, and entity-escaped. Covered by `tests/logo.test.ts`
+  (text kept, script/handler payloads stripped, long nodes capped).
+- **History IDOR (PASS by construction):** every jobs query filters `userId` from the
+  session; `[id]` routes use `updateMany`/`deleteMany` with `{ id, userId }` and 404
+  on zero rows, so one user cannot favorite/delete another's logos.
+- **Counter peek (PASS):** `peekAiRateLimit` reads the in-memory counter without
+  incrementing; Upstash guests get `remaining: null` rather than a fabricated count.
+- **Client PNG conversion (PASS):** canvas draws only the server-sanitized SVG blob
+  (same-origin, no external refs possible post-sanitize); the Sharp server route
+  remains as fallback and re-sanitizes.
+- **Secrets (PASS):** grep of the repo (names only in messages/comments) and of the
+  client bundle found no key values; the only key NAME in client JS is the
+  pre-existing user-facing label mentioning `REPLICATE_API_TOKEN`, not a value.
+- **Model change (noted, not a finding):** `openai/gpt-oss-120b` primary,
+  `openai/gpt-oss-20b` fallback; `llama-3.3-70b-versatile` retired (404) and unused.
+
 ## Verdict
 
 Zero critical/high issues open. One medium fixed during the loop (SSRF

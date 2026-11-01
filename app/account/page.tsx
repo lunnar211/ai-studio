@@ -4,6 +4,7 @@ import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { countJobsToday, getSettings } from "@/lib/settings";
 import { ExportButton, DeleteButton, CheckoutButton } from "./AccountActions";
+import LogoHistory from "@/components/LogoHistory";
 
 export const metadata: Metadata = {
   title: "My account — AI Studio",
@@ -129,6 +130,8 @@ export default async function AccountPage() {
           </div>
         )}
       </section>
+
+      <LogoHistory />
 
       <section aria-label="Payments">
         <h2 className="text-2xl font-bold">Recent payments</h2>

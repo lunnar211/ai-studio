@@ -17,6 +17,8 @@ export function Footer() {
             {[
               ["/logo-generator", "Logo Generator"],
               ["/photo-enhancer", "Photo Enhancer"],
+              ["/pricing", "Pricing"],
+              ["/faq", "FAQ"],
               ["/about", "About"],
               ["/contact", "Contact"],
               ["/privacy", "Privacy Policy"],

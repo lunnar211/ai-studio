@@ -20,14 +20,13 @@ const TOOLS = [
 ];
 
 const FAQS = [
-  { q: "Is AI Studio really free?", a: "Yes. The free tier gives you 10 AI generations per day per visitor, with no account and no payment details. Signed-in users get higher limits, and a Premium plan is sold through Paddle once checkout is configured." },
+  { q: "Is AI Studio really free?", a: "Yes. The free tier gives you 10 AI generations per day per visitor, with no account and no payment details. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to 100 per day and is sold through Paddle (see Pricing)." },
   { q: "What happens to my uploaded photos?", a: "Files are processed on our server and deleted immediately after processing (max 60 minutes in any case). We never list, share or train on them." },
   { q: "Can I use a generated logo for my business?", a: "Yes. Logos are generated as original geometry from your description. Prompts that reference existing brands, characters or public figures are refused, so the result is yours to use. For trademark registration, get independent legal advice." },
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },
 ];
 
 export default function Home() {
-  const checkoutUrl = process.env.NEXT_PUBLIC_PREMIUM_CHECKOUT_URL;
   return (
     <div>
       {/* Hero — the one bold element: a thick pink frame with a serif-italic headline */}
@@ -93,16 +92,12 @@ export default function Home() {
       <section aria-labelledby="premium-heading" className="mt-12 border-2 border-accent bg-white p-6 dark:bg-slate-900">
         <h2 id="premium-heading" className="font-display text-3xl font-bold italic">Premium plan</h2>
         <p className="mt-2 max-w-xl text-muted-fg dark:text-slate-300">
-          Higher daily limits, no ads, and HD export. The premium plan is planned but not for sale yet —
-          no payment is collected on this page.
+          Higher daily limits, no ads, and HD export. Premium is sold through Paddle — checkout is handled
+          by Paddle as merchant of record, and no card details are ever entered on this site.
         </p>
-        {checkoutUrl ? (
-          <Link href={checkoutUrl} className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
-            Upgrade to Premium
-          </Link>
-        ) : (
-          <p className="mt-4 font-semibold text-slate-900 dark:text-white">Premium checkout is not available yet. Check back soon.</p>
-        )}
+        <Link href="/pricing" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand bg-brand px-5 py-2.5 font-semibold text-white">
+          See Premium pricing
+        </Link>
       </section>
 
       <section aria-labelledby="faq-heading" className="mt-12">

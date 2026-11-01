@@ -57,3 +57,16 @@ export function rateLimitHeaders(remaining: number, limit: number) {
     "X-RateLimit-Remaining": String(remaining),
   };
 }
+
+// Read-only peek for the free-tier counter: returns the guest's current
+// remaining count WITHOUT consuming a unit. Only the in-memory fallback
+// supports this; Upstash has no peek operation (reading its internal keys
+// would be guessing at library internals), so Upstash guests get null and
+// the UI shows the daily limit without a live count instead of a wrong one.
+export async function peekAiRateLimit(ip: string, tool: string): Promise<{ remaining: number; limit: number } | null> {
+  if (upstash) return null;
+  const limit = 10;
+  const entry = memory.get(`${tool}:${ip}`);
+  if (!entry || entry.resetAt <= Date.now()) return { remaining: limit, limit };
+  return { remaining: Math.max(0, limit - entry.count), limit };
+}

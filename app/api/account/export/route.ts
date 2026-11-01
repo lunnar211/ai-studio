@@ -11,11 +11,14 @@ export async function GET() {
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
-  const [user, jobs, subscriptions, payments] = await Promise.all([
+  const [user, jobs, subscriptions, payments, logoGenerations] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.job.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.subscription.findMany({ where: { userId } }),
     prisma.payment.findMany({ where: { userId } }),
+    // New table: absent until the owner pushes the schema once; an empty
+    // list then, never a failed export.
+    prisma.logoGeneration.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }).catch(() => []),
   ]);
   if (!user) return NextResponse.json({ error: "Account not found." }, { status: 404 });
   // Never export the encrypted TOTP secret.
@@ -28,7 +31,7 @@ export async function GET() {
     lastLoginAt: user.lastLoginAt,
   };
   return NextResponse.json(
-    { exportedAt: new Date().toISOString(), user: safeUser, jobs, subscriptions, payments },
+    { exportedAt: new Date().toISOString(), user: safeUser, jobs, subscriptions, payments, logoGenerations },
     { headers: { "Content-Disposition": 'attachment; filename="ai-studio-my-data.json"' } }
   );
 }

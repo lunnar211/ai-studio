@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", style: ["normal", "italic"], display: "swap" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://ai-studio.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://ai-studio-sandy-sigma.vercel.app"),
   title: { default: "AI Studio — Free AI Logo Generator and Photo Enhancer", template: "%s | AI Studio" },
   description: "Free AI tools: generate an original logo from a description, and enhance your photos. No account needed for the free tier.",
   openGraph: {
@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     siteName: "AI Studio",
     title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
     description: "Generate an original logo from a description, and enhance your photos. Free tier, no account needed.",
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio — Free AI Logo Generator and Photo Enhancer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
+    description: "Generate an original logo from a description, and enhance your photos. Free tier, no account needed.",
+    images: ["/og.jpg"],
   },
 };
 

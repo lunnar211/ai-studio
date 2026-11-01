@@ -3,10 +3,15 @@
 // foreignObject, event handlers (on*), href/xlink, style elements, external
 // references, data: and javascript: values — is stripped. Output that does
 // not contain a valid <svg> root is rejected by the caller.
+//
+// <text> IS allowed (brand names in logos): only safe attributes, and the
+// text content itself is copied only when it sits inside a <text> element.
+// Text nodes are length-capped and entity-escaped; nested markup inside
+// <text> is dropped, never rendered.
 
 const ALLOWED_TAGS = new Set([
   "svg", "g", "path", "circle", "rect", "ellipse", "polygon", "polyline",
-  "line", "defs", "lineargradient", "radialgradient", "stop",
+  "line", "defs", "lineargradient", "radialgradient", "stop", "text",
 ]);
 
 const ALLOWED_ATTRS = new Set([
@@ -14,7 +19,19 @@ const ALLOWED_ATTRS = new Set([
   "cx", "cy", "r", "x", "y", "x1", "y1", "x2", "y2", "points", "opacity",
   "transform", "offset", "stop-color", "gradientunits", "id",
   "stroke-linecap", "stroke-linejoin", "fill-rule", "clip-rule",
+  "font-family", "font-size", "font-weight", "text-anchor",
 ]);
+
+// Max characters kept from a single <text> node (brand names are short;
+// this stops a model stuffing paragraphs into a logo).
+const MAX_TEXT_NODE = 120;
+
+function escapeText(s: string): string {
+  return s
+    .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 const VOID_TAGS = new Set(["circle", "rect", "ellipse", "line", "stop"]);
 
@@ -58,14 +75,20 @@ export function sanitizeSvg(raw: string): string | null {
   let svgClosed = false;
   const openStack: string[] = [];
   while ((m = tagRe.exec(input)) !== null) {
+    // Copy safe text nodes that sit inside a <text> element. Text anywhere
+    // else (whitespace, stray model chatter) is discarded, never rendered.
+    const gap = input.slice(lastIndex, m.index);
+    if (openStack.length && openStack[openStack.length - 1] === "text" && gap.trim()) {
+      out.push(escapeText(gap.slice(0, MAX_TEXT_NODE)));
+    }
     const isClose = m[0].startsWith("</");
     const rawName = m[1].toLowerCase().replace(/^.*:/, "");
     const selfClosing = m[0].endsWith("/>");
     if (!ALLOWED_TAGS.has(rawName)) {
       // Drop the tag but keep scanning; disallowed content tags (script,
-      // foreignObject, style, text, image, use, a) are removed wholesale
+      // foreignObject, style, image, use, a) are removed wholesale
       // by skipping everything until their close tag below.
-      if (!isClose && !selfClosing && ["script", "foreignobject", "style", "text", "image", "use", "a", "iframe", "object", "embed", "animate"].includes(rawName)) {
+      if (!isClose && !selfClosing && ["script", "foreignobject", "style", "image", "use", "a", "iframe", "object", "embed", "animate"].includes(rawName)) {
         const closeRe = new RegExp(`</${m[1]}\\s*>`, "i");
         const rest = input.slice(tagRe.lastIndex);
         const closeMatch = rest.match(closeRe);
@@ -73,6 +96,7 @@ export function sanitizeSvg(raw: string): string | null {
           tagRe.lastIndex += closeMatch.index + closeMatch[0].length;
         }
       }
+      lastIndex = tagRe.lastIndex;
       continue;
     }
     if (isClose) {
@@ -82,6 +106,7 @@ export function sanitizeSvg(raw: string): string | null {
         if (rawName === "svg") svgClosed = true;
         depth -= 1;
       }
+      lastIndex = tagRe.lastIndex;
       continue;
     }
     // Opening tag: filter attributes.
@@ -115,7 +140,7 @@ export function sanitizeSvg(raw: string): string | null {
       openStack.push(rawName);
       depth += 1;
     }
-    void lastIndex;
+    lastIndex = tagRe.lastIndex;
     void depth;
   }
   if (!sawSvg) return null;

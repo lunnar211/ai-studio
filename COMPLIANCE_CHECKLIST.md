@@ -79,3 +79,15 @@ unless the evidence column says how it was checked.
   is NOT possible (cookies cannot cross domains). This build gives a
   shared DB + per-site sessions. SSO-on-a-shared-domain is a later step
   once custom domains exist.
+
+## Update 2026-11-01 — logo history + pricing honesty
+
+- Saved logos (`LogoGeneration` table) are the user's own data: they are
+  included in the account data export and deleted with the account
+  (relation `onDelete: Cascade`); the history UI also offers per-item
+  delete and clear-all.
+- The `/pricing` page invents no price: the Premium price lives in Paddle
+  and is shown at checkout. The page states this plainly instead of
+  showing a figure the owner has not set.
+- Logo prompts are sent to Groq for generation only; the logo page and
+  FAQ state this, and outputs are labelled AI-generated in the tool.

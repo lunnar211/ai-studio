@@ -38,7 +38,7 @@ export default function EnhancerPage() {
       <h1 className="font-display text-4xl font-bold italic">AI Photo Enhancer</h1>
       <p className="mt-3 max-w-2xl text-lg text-muted-fg dark:text-slate-300">
         Upload a photo and get a sharper, larger version back. Drag the slider to compare before and
-        after, then download the result as PNG. The result is always labelled honestly: AI enhanced,
+        after, then download the result as PNG or JPG. The result is always labelled honestly: AI enhanced,
         or enhanced at standard quality.
       </p>
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">

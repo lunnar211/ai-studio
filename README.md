@@ -3,13 +3,32 @@
 Free AI tools: an original logo generator and a photo enhancer. Next.js App Router +
 TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `components/ui`.
 
+## Update 2026-11-01 — logo quality + history release
+
+- Logo generation now returns 3 variants per request (primary model `openai/gpt-oss-120b`,
+  fallback `openai/gpt-oss-20b`; `llama-3.3-70b-versatile` is retired and never used).
+  Model choice was live-tested 2026-11-01 (see `tests/logo.test.ts` + the model test log):
+  120b produced a valid brand-text SVG in ~2.3s, 20b in ~2.4s; 120b wins on quality.
+- The SVG sanitizer now allows brand-name `<text>` (safe attributes only, text nodes
+  length-capped and entity-escaped); scripts, handlers, and external references are still stripped.
+- New: example gallery, suggested prompts, live daily counter (`GET /api/logo/limits`),
+  mockup preview, saved logo history (`LogoGeneration` table + `/api/account/jobs`),
+  `/pricing`, `/faq`, 3 use-case pages, OG image `public/og.jpg` (32 KB JPEG).
+- Streaming (SSE) was NOT implemented: server-side SVG validation needs the complete model
+  output before anything is shown, so the UI uses staged progress states with a ~10s estimate instead.
+- Tests: vitest 30/30, Playwright 13/13, `npm run build` EXIT=0 (2026-11-01).
+- Owner taps still owed: one `prisma db push` from this repo (creates `LogoGeneration`);
+  optional `REPLICATE_API_TOKEN` for AI upscaling; no Vercel env var was touched.
+
 ## Routes
 
 | Route | What it does |
 | --- | --- |
 | `/` | Home: hero, tool cards, how-it-works, FAQ, trust, premium, other projects |
-| `/logo-generator` | AI logo generator (SVG preview, SVG + 1024px PNG download) |
-| `/photo-enhancer` | Photo enhancer (drag-and-drop, real upload progress, before/after slider, PNG download) |
+| `/logo-generator` | AI logo generator: 9 example logos, suggested prompts, brand-name input, 3 variants per request, per-variant Regenerate / SVG / PNG 1024 / Copy SVG, mockup preview (card, shirt, app icon), live daily counter |
+| `/photo-enhancer` | Photo enhancer (drag-and-drop, real upload progress, before/after slider, PNG + JPG download) |
+| `/pricing`, `/faq` | Pricing (Free 10/day vs Premium 100/day, Paddle checkout, price shown at checkout) and FAQ |
+| `/logo-for-coffee-shop`, `/logo-for-tech-startup`, `/logo-for-fitness-studio` | Original use-case pages with JSON-LD |
 | `/about`, `/contact`, `/privacy`, `/terms`, `/disclaimer` | Content and policy pages |
 | `/cookies`, `/refund-policy`, `/acceptable-use`, `/dmca` | Cookie, refund, moderation and takedown pages |
 | `/signin`, `/onboarding`, `/account` | Google sign-in, age confirmation, profile + usage + job history + data export/delete |
@@ -19,10 +38,11 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 
 | Route | Behaviour |
 | --- | --- |
-| `POST /api/logo/generate` | Zod-validated `{prompt, style, colors}`. Groq `openai/gpt-oss-20b` returns SVG only; output is whitelist-sanitized server-side. Brand/celebrity prompts refused (400). Without `GROQ_API_KEY` returns an honest 503 — never a fake logo. |
+| `POST /api/logo/generate` | Zod-validated `{prompt (≤300), style, colors, brandName (≤40)}`. Strict designer prompt (one SVG, 512 canvas, transparent background, ≤8 shapes, ≤3 palette colours, brand name in bold sans-serif `<text>`). Groq `openai/gpt-oss-120b` primary + `openai/gpt-oss-20b` fallback; 3 variants in parallel, fallback round fills missing slots. Output is whitelist-sanitized server-side (`<text>` allowed, safe attrs only) and validated before return. Brand/celebrity prompts refused (400, pre-check blocklist + model `REFUSED` handling). Groq 429 → honest 429, never a fake logo. Without `GROQ_API_KEY` returns an honest 503. One request = 1 quota unit = 3 variants; signed-in quotas from SiteSetting via Job rows, guests 10/day per IP. Signed-in successes also save a `LogoGeneration` row (history). |
+| `GET /api/logo/limits` | Free-tier counter: signed-in exact counts from the DB; guest in-memory peek (null remaining under Upstash, where peeking is impossible without consuming). |
+| `GET/DELETE /api/account/jobs`, `PATCH/DELETE /api/account/jobs/[id]` | Own-user-only saved-logo history: list, favorite toggle, delete one, delete all. Returns an honest 503 (not fake-empty) until the schema push creates the table. |
 | `POST /api/logo/png` | Sanitizes the supplied SVG again, rasterizes with Sharp at 1024px, transparent background. |
 | `POST /api/enhance` | Multipart image, magic-byte validated JPG/PNG/WebP, max 10 MB. Replicate `nightmareai/real-esrgan` when `REPLICATE_API_TOKEN` is set and succeeds (labelled `ai`); otherwise Sharp 2x lanczos3 + sharpen + normalize (labelled `sharp`, never claimed as AI). Replicate output URLs are fetched only from `replicate.delivery` (SSRF allowlist). |
-| `POST /api/logo/generate` (updated) | Server-side retry up to 3 attempts on unusable model output (never a fake logo); signed-in users get SiteSetting quotas counted from Job rows; guests keep the 10/day per-IP limit; blocked IPs (hash lookup) and suspended accounts are refused. |
 | `POST /api/checkout` | Auth + age-18+ required. Creates a Paddle hosted-checkout transaction and returns its URL. No card data touches this site. |
 | `POST /api/webhooks/paddle` | Verifies the signature with the Paddle SDK, idempotent via `WebhookEvent.eventId` (duplicate → 200 ignored). Handles `transaction.completed` + `subscription.created/updated/cancelled` → upserts Subscription/Payment and sets `User.plan`. Customer mapping is keyed on the Supabase user id/email first (Prisma id as legacy fallback). |
 | `GET /api/account/export`, `POST /api/account/delete` | The caller's own data only (id from session, never from params). Export omits the TOTP secret. |
@@ -129,7 +149,10 @@ vars in Vercel.
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ADMIN_EMAILS` and a fresh
    per-site `TOTP_SECRET` (`openssl rand -base64 32` — never reuse one
    across sites) in Vercel Production, then redeploy. Never remove or
-   overwrite `GROQ_API_KEY`. Until these taps are done, live Google
+   overwrite `GROQ_API_KEY`. NOTE (Nov 2026): pushing from the ai-studio
+   repo also creates the AI-Studio-only `LogoGeneration` table used by
+   saved logo history; until that push, history APIs answer an honest 503
+   and generations still work. Until these taps are done, live Google
    login CANNOT be proven — the code is built and tested without live
    credentials, but the live login path stays unproven by design.
 2. **Google OAuth verification note:** full OAuth verification needs a

@@ -88,6 +88,37 @@ export function EnhancerTool() {
     a.href = afterUrl; a.download = "enhanced.png"; a.click();
   }
 
+  // JPG download: redraw the enhanced PNG onto a white canvas (JPG has no
+  // transparency, so the background must be filled) and export at quality 0.92.
+  async function downloadJpg() {
+    if (!afterUrl) return;
+    setError("");
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("image load failed"));
+        img.src = afterUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas unavailable");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!blob) throw new Error("JPG conversion failed");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "enhanced.jpg"; a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Could not download the JPG. Try the PNG download instead.");
+    }
+  }
+
   const engineLabel =
     engine === "ai"
       ? "AI enhanced"
@@ -117,9 +148,14 @@ export function EnhancerTool() {
         <div className="mt-4"><TurnstileWidget onToken={setToken} /></div>
         {error && <div className="mt-4"><Alert kind="error">{error}</Alert></div>}
         {loading && progress !== null && (
-          <div className="mt-4" role="status" aria-label={`Upload progress ${progress} percent`}>
-            <div className="h-3 w-full rounded-[3px] bg-cream dark:bg-slate-800">
-              <div className="h-3 rounded-[3px] bg-brand transition-all" style={{ width: `${progress}%` }} />
+          <div className="mt-4" role="status" aria-label={progress < 100 ? `Upload progress ${progress} percent` : "Processing photo"}>
+            <style>{`@keyframes enhancer-indeterminate { 0% { transform: translateX(-100%);} 100% { transform: translateX(300%);} }`}</style>
+            <div className="h-3 w-full overflow-hidden rounded-[3px] bg-cream dark:bg-slate-800">
+              {progress < 100 ? (
+                <div className="h-3 rounded-[3px] bg-brand transition-all" style={{ width: `${progress}%` }} />
+              ) : (
+                <div className="h-3 w-1/3 rounded-[3px] bg-brand" style={{ animation: "enhancer-indeterminate 1.2s ease-in-out infinite" }} />
+              )}
             </div>
             <p className="mt-1 text-sm text-muted-fg dark:text-slate-400">
               {progress < 100 ? `Uploading… ${progress}%` : "Processing your photo… this can take a few seconds."}
@@ -148,9 +184,14 @@ export function EnhancerTool() {
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={afterUrl} alt="Photo after enhancement" className="max-h-[420px] w-full object-contain bg-cream dark:bg-slate-800" />
-                <Button type="button" variant="secondary" onClick={download} className="mt-3">
-                  <Download size={18} aria-hidden="true" /> Download PNG
-                </Button>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button type="button" variant="secondary" onClick={download}>
+                    <Download size={18} aria-hidden="true" /> Download PNG
+                  </Button>
+                  <Button type="button" variant="outline" onClick={downloadJpg}>
+                    <Download size={18} aria-hidden="true" /> Download JPG
+                  </Button>
+                </div>
               </>
             ) : (
               <div className="flex min-h-[200px] items-center justify-center text-muted-fg dark:text-slate-400">

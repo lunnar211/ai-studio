@@ -1,6 +1,8 @@
 // AI Studio + PDF Tools Hub SHARED schema (Prisma + PostgreSQL).
 // This file MUST stay identical in both sites (except the documented
-// supabaseId addition, which the sister site adopts in the same release).
+// supabaseId addition, which the sister site adopts in the same release,
+// and the AI-Studio-only LogoGeneration model added Nov 2026, which is a
+// separate table the sister client's queries never touch).
 // Do not rename models, tables, columns, or primary keys here.
 // Shared database: the owner's existing Supabase Postgres project
 // ("LeadForge"); the Supabase pooler DATABASE_URL is pasted into both
@@ -75,6 +77,7 @@ model User {
   jobs                Job[]
   subscriptions       Subscription[]
   payments            Payment[]
+  logoGenerations     LogoGeneration[]
   notes               AdminNote[]    @relation("NoteTarget")
   authoredNotes       AdminNote[]    @relation("NoteAuthor")
 }
@@ -123,6 +126,28 @@ model Job {
   costEstimate Float?
   createdAt    DateTime  @default(now())
   user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// AI-Studio-only additive model (Nov 2026): saved logo generations for the
+// account history page. A separate table — NOT columns on Job — so every
+// pre-existing Job query keeps working on a database that has not had the
+// new schema pushed yet; only the new history code paths degrade (they
+// catch the missing-table error and report it honestly). Nullable-safe and
+// ignored by the sister site's client. The owner pushes the schema ONCE
+// from this repo for history to work; quota counting still uses Job rows.
+model LogoGeneration {
+  id         String   @id @default(cuid())
+  userId     String
+  prompt     String
+  style      String
+  colors     String
+  brandName  String?
+  variantsJson String
+  favorite   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Subscription {
