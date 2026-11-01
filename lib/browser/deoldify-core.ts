@@ -98,9 +98,15 @@ export async function fetchDeoldifyModel(onProgress?: ModelProgress): Promise<Ar
   if (typeof caches !== "undefined") {
     try {
       const cache = await caches.open(DEOLDIFY_CACHE_NAME);
+      // Cache from a Blob over the chunks, NOT from buf.slice(0):
+      // the slice copied all 64 MB a second time, and the download
+      // phase already holds chunks + merged at once. A Blob holds
+      // references to the chunks, so this copy disappears, and the
+      // returned buffer is untouched (a Response built on buf
+      // itself could detach it).
       await cache.put(
         DEOLDIFY_MODEL_URL,
-        new Response(buf.slice(0), { headers: { "content-type": "application/octet-stream" } })
+        new Response(new Blob(chunks as BlobPart[], { type: "application/octet-stream" }))
       );
     } catch {
       // Caching is best-effort only.
