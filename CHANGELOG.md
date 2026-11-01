@@ -103,6 +103,30 @@
   whole-image merge byte-identical across band edges, plus
   single-pixel alpha case).
 
+## 2026-11-01 — iPhone crash, second investigation (same day, master)
+
+- REPORT (owner): browser colorize + restore still crashes
+  every time on his iPhone, even after the banding fix.
+- MEASURED (desktop, big 4032x3024 photo, real browser RSS):
+  baseline 450 MB, peak 1,191 MB before the arena test and
+  1,317 MB with ORT arena options disabled — i.e. the arena
+  was NOT the problem, and disabling it helped nothing, so
+  that change was reverted. The spike is the model itself:
+  64 MB download + WASM session + UNet activations at
+  256x256, roughly 860 MB over baseline. A phone tab cannot
+  hold that, which is why it dies every time on his phone
+  while desktop passes.
+- SHIPPED: model caching no longer copies 64 MB a second
+  time (Blob over the download chunks instead of
+  buf.slice(0)). Small, real saving; it does NOT make the
+  model phone-safe.
+- HONEST CONCLUSION: browser colorize cannot be made
+  phone-safe by trimming — the model is too heavy for a
+  phone tab. The phone path is server colorize, which needs
+  the owner's HF Space (HF_SPACE_ID + HF_TOKEN in Vercel +
+  redeploy). Desktop browser colorize is unaffected and
+  still works.
+
 ## 2026-11-01 — Motion on every site (AI Studio first)
 
 - PICK (from motion.dev, the Motion site, 2026-11-01): the
