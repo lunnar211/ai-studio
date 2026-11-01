@@ -1,8 +1,16 @@
 import type { NextConfig } from "next";
 
+// 'wasm-unsafe-eval' is REQUIRED, not optional: browser colorize
+// (DeOldify ONNX via onnxruntime-web) falls back to WASM wherever
+// WebGPU is unavailable, and Chrome refuses to compile ANY WebAssembly
+// module when script-src lacks 'wasm-unsafe-eval' (proven 2026-11-01:
+// live CSP blocked WebAssembly.compile; adding the keyword unblocked
+// it). It allows wasm compilation ONLY — unlike 'unsafe-eval', it does
+// not allow JavaScript eval. Removing it silently breaks browser
+// colorize on every device without WebGPU.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",

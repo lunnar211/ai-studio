@@ -1,5 +1,23 @@
 # CHANGELOG — AI Studio
 
+## 2026-11-01 — browser colorize fixed (master, live via auto-deploy)
+
+- ROOT CAUSE (proven, not guessed): the site's CSP `script-src`
+  had no `'wasm-unsafe-eval'`, so Chrome refused to compile ANY
+  WebAssembly module. Browser colorize tries WebGPU first, but on
+  every browser without WebGPU it falls back to WASM — which the CSP
+  blocked — so it failed with the generic "failed on this device"
+  message. Model URL, CORS, and jsDelivr WASM files were all verified
+  healthy; they were never the problem. A Playwright check proved it:
+  live CSP blocked `WebAssembly.compile`, the fixed CSP allowed it.
+- FIX: `next.config.ts` script-src now includes `'wasm-unsafe-eval'`
+  (allows wasm compilation ONLY, not JS eval — narrower than
+  `'unsafe-eval'`). The photo tool now also shows the REAL engine
+  error detail instead of only the generic message, so the next
+  failure is diagnosable from the screen.
+- REGRESSION TEST: `tests/csp-wasm.test.ts` fails if the keyword is
+  ever removed, and fails if broad `'unsafe-eval'` creeps in.
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 

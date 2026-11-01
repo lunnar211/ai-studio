@@ -530,13 +530,19 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       });
       setLoading(false);
       setBrowserProgress("");
-    } catch {
+    } catch (err) {
       setLoading(false);
       setBrowserProgress("");
       // Never a dead end: offer the other path as a button, not just
       // words. Server colorize when it is available, otherwise free
       // Enhance (sharpen + upscale, honestly not colour).
-      setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it).");
+      // Show the REAL error detail (it contains no secrets — it is a
+      // client-side engine message). The old generic-only message hid
+      // the 2026-11-01 root cause: the site's CSP blocked WebAssembly
+      // compilation, which only surfaced once the real message was
+      // visible in testing.
+      const detail = err instanceof Error && err.message ? ` (${err.message})` : "";
+      setError(`Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it).${detail}`);
       if (colorizeAvailable) setOfferServer(true);
       else setFreeAlternative("enhance");
     }
