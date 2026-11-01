@@ -1,22 +1,45 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronDown, Menu, X, Sparkles } from "lucide-react";
-import { SISTER_SITE_URL, LEADSFORCEGEN_URL } from "@/lib/site";
+import { useEffect, useState } from "react";
+import { Menu, X, Sparkles } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/logo-generator", label: "Logo Generator" },
   { href: "/photo-enhancer", label: "Photo Enhancer" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
-  { href: "/signin", label: "Sign in" },
-  { href: "/account", label: "My account" },
 ];
 
+// Other-project links live in the FOOTER only (Phase 3): the header
+// never links away to sister sites. "My account" is shown only when
+// signed in and "Sign in" only when signed out; while the session
+// check is pending, neither account link is shown (no wrong link
+// flashes). The check is a tiny /api/auth/me call that returns only
+// { signedIn } — no personal data — so public pages stay static.
 export function Header() {
   const [open, setOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && typeof d.signedIn === "boolean") setSignedIn(d.signedIn);
+        else if (!cancelled) setSignedIn(false);
+      })
+      .catch(() => {
+        if (!cancelled) setSignedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const nav = [
+    ...BASE_NAV,
+    ...(signedIn ? [{ href: "/account", label: "My account" }] : []),
+    ...(signedIn === false ? [{ href: "/signin", label: "Sign in" }] : []),
+  ];
   return (
     <header className="border-b-2 border-line bg-white dark:bg-slate-950">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
@@ -27,31 +50,11 @@ export function Header() {
           AI Studio
         </Link>
         <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link key={item.href} href={item.href} className="inline-flex min-h-[44px] items-center rounded-[3px] px-3 font-medium hover:bg-cream dark:hover:bg-slate-800">
               {item.label}
             </Link>
           ))}
-          <div className="relative">
-            <button
-              type="button"
-              aria-expanded={moreOpen}
-              onClick={() => setMoreOpen((v) => !v)}
-              className="inline-flex min-h-[44px] items-center gap-1 rounded-[3px] px-3 font-medium hover:bg-cream dark:hover:bg-slate-800"
-            >
-              More tools <ChevronDown size={16} aria-hidden="true" />
-            </button>
-            {moreOpen && (
-              <div className="absolute right-0 z-20 mt-1 w-56 border-2 border-line bg-white p-2 shadow-lg dark:bg-slate-900">
-                <Link href={SISTER_SITE_URL} className="block min-h-[44px] rounded-[3px] px-3 py-2 font-medium hover:bg-cream dark:hover:bg-slate-800">
-                  PDF Tools Hub
-                </Link>
-                <Link href={LEADSFORCEGEN_URL} className="block min-h-[44px] rounded-[3px] px-3 py-2 font-medium hover:bg-cream dark:hover:bg-slate-800">
-                  LeadsForceGen
-                </Link>
-              </div>
-            )}
-          </div>
           <ThemeToggle />
         </nav>
         <button
@@ -66,8 +69,8 @@ export function Header() {
       </div>
       {open && (
         <nav aria-label="Mobile" className="border-t-2 border-line px-4 py-3 lg:hidden">
-          {[...NAV, { href: SISTER_SITE_URL, label: "PDF Tools Hub" }, { href: LEADSFORCEGEN_URL, label: "LeadsForceGen" }].map((item) => (
-            <Link key={item.href + item.label} href={item.href} className="block min-h-[44px] rounded-[3px] px-2 py-2.5 font-medium hover:bg-cream dark:hover:bg-slate-800" onClick={() => setOpen(false)}>
+          {nav.map((item) => (
+            <Link key={item.href} href={item.href} className="block min-h-[44px] rounded-[3px] px-2 py-2.5 font-medium hover:bg-cream dark:hover:bg-slate-800" onClick={() => setOpen(false)}>
               {item.label}
             </Link>
           ))}

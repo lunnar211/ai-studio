@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Image as ImageIcon, Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
-import { SISTER_SITE_URL, LEADSFORCEGEN_URL } from "@/lib/site";
+import { Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
 import { LIMITS } from "@/lib/limits";
+import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
   title: "AI Studio — Free AI Logo Generator and Photo Enhancer",
@@ -115,21 +115,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section aria-labelledby="projects-heading" className="mt-12 border-2 border-line bg-white p-6 dark:bg-slate-900">
-        <h2 id="projects-heading" className="font-display text-3xl font-bold italic">Our other projects</h2>
-        <p className="mt-2 text-muted-fg dark:text-slate-300">More free tools from the same maker.</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={SISTER_SITE_URL} className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-accent px-4 py-2 font-semibold text-accent-dark">
-            PDF Tools Hub
-          </Link>
-          <Link href={LEADSFORCEGEN_URL} className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand px-4 py-2 font-semibold text-brand-dark">
-            LeadsForceGen
-          </Link>
-        </div>
-        <p className="mt-3 flex items-center gap-2 text-sm text-muted-fg dark:text-slate-400">
-          <ImageIcon size={16} aria-hidden="true" /> PDF Tools Hub converts and merges documents; LeadsForceGen finds business leads.
-        </p>
-      </section>
+      <RestoreSection />
     </div>
   );
 }

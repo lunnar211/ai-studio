@@ -96,3 +96,37 @@ All work on the `full-upgrade` branch unless noted. Production
 - New tests: `tests/paddle-price.test.ts` (price formatting).
 - Verified: tsc clean, eslint clean on touched files, vitest 61/61,
   build EXIT=0.
+
+## Phase 3 — conversion + trust (this change)
+
+- Other-project links are FOOTER ONLY now: CrossPromo removed from all
+  7 tool/use-case pages and the component deleted; "More tools"
+  header dropdown removed; home "Our other projects" section removed.
+  Footer still links PDF Tools Hub + LeadsForceGen.
+- Cookie banner now REALLY gates analytics: <Analytics/> rendered
+  unconditionally before (declining did nothing). New GatedAnalytics
+  mounts Vercel Analytics only after "accepted"; the banner dispatches
+  a window event so accepting mid-visit activates it without reload.
+  AdSlot was already consent-gated (verified, left as-is).
+- Header: "My account" shows only when signed in, "Sign in" only when
+  signed out, via tiny new GET /api/auth/me (returns {signedIn} only,
+  no personal data) so public pages stay static; neither link shows
+  while the check is pending (no wrong-link flash).
+- Privacy-friendly events (lib/analytics.ts, consent-gated + env
+  kill-switch NEXT_PUBLIC_ANALYTICS_ENABLED=false): photo_upload,
+  photo_mode, photo_result, photo_download, logo_generate,
+  logo_download, upgrade_click. No prompts, filenames, or emails in
+  event names. Never tracked without consent.
+- Friendly 404 (not-found.tsx) + 500 (error.tsx, global-error.tsx).
+- "Old photo restoration" section + 3-step How-it-works (shared
+  RestoreSection) on home + photo-enhancer. Gallery of real
+  before/after examples DEFERRED to the end (speed note): it needs
+  verified public-domain photos with credit lines, and no synthetic
+  image will be presented as a real photo.
+- Health check: GET /api/health returns {ok, service, time} only.
+- Delete-my-data flow verified intact in code (route + cascade +
+  client sign-out); live check still needs an owner session.
+- Lint fixes in touched files: LogoTool + CookieBanner setState-in-
+  effect deferred via requestAnimationFrame; unused import removed.
+- Verified: tsc clean, eslint clean on touched files, vitest 61/61,
+  build EXIT=0.

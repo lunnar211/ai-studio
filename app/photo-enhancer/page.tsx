@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { EnhancerTool } from "./EnhancerTool";
-import { CrossPromo } from "@/components/site/CrossPromo";
+import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
   title: "AI Photo Enhancer — Sharpen and Upscale Photos",
@@ -87,7 +87,7 @@ export default async function EnhancerPage({
           <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">Are my photos kept?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">No. They are processed and deleted immediately after processing, and never listed or shared.</p></div>
         </div>
       </section>
-      <CrossPromo />
+      <RestoreSection />
     </div>
   );
 }

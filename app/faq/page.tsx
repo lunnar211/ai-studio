@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LIMITS } from "@/lib/limits";
-import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
   title: "FAQ — AI Studio",
@@ -81,7 +80,6 @@ export default function FaqPage() {
         Still stuck? <Link href="/contact" className="underline">Contact us</Link> or try the{" "}
         <Link href="/logo-generator" className="underline">logo generator</Link>.
       </p>
-      <CrossPromo />
     </div>
   );
 }

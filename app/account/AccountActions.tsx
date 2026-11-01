@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseSignOut } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { Alert } from "@/components/ui/field";
 
 export function ExportButton() {
@@ -33,8 +34,10 @@ export function ExportButton() {
 }
 
 export function CheckoutButton({ billing = "monthly", label }: { billing?: "monthly" | "yearly"; label?: string }) {
+  // Upgrade click is an analytics event only (consent-gated inside trackEvent).
   const [state, setState] = useState("");
   async function run() {
+    trackEvent("upgrade_click");
     setState("Starting checkout…");
     const res = await fetch("/api/checkout", {
       method: "POST",

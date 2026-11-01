@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@/lib/analytics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Check, Copy, Download, Loader2, RefreshCw } from "lucide-react";
@@ -147,8 +148,13 @@ export function LogoTool() {
   }, []);
 
   useEffect(() => {
-    void refreshLimits();
+    // Deferred so the effect never sets state synchronously (lint:
+    // react-hooks/set-state-in-effect); the callback still runs once.
+    const raf = requestAnimationFrame(() => {
+      void refreshLimits();
+    });
     return () => {
+      cancelAnimationFrame(raf);
       if (stageTimer.current) clearInterval(stageTimer.current);
     };
   }, [refreshLimits]);
@@ -196,6 +202,7 @@ export function LogoTool() {
       const list = await runGeneration();
       if (list) {
         setVariants(list);
+        trackEvent("logo_generate");
         setSelected(0);
         setNotice("One request = 3 variants = 1 credit of your daily limit.");
       }
@@ -229,6 +236,7 @@ export function LogoTool() {
   }
 
   function downloadSvg(svg: string, index: number) {
+    trackEvent("logo_download");
     downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `logo-${index + 1}.svg`);
   }
 

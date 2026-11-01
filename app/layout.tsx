@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import { Analytics } from "@vercel/analytics/next";
+import { GatedAnalytics } from "@/components/site/GatedAnalytics";
 import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main id="main" className="mx-auto max-w-6xl px-4 py-8">{children}</main>
           <Footer />
           <CookieBanner />
-          <Analytics />
+          <GatedAnalytics />
         </ThemeProvider>
       </body>
     </html>

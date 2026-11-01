@@ -1,4 +1,5 @@
 "use client";
+import { trackEvent } from "@/lib/analytics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
           note: st.note,
         });
         setEngine(st.engine ?? "");
+        trackEvent("photo_result");
         setJobStage("done");
         setLoading(false);
         window.localStorage.removeItem("photo-job-id");
@@ -274,6 +276,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       return;
     }
     setFile(f);
+    trackEvent("photo_upload");
     setBeforeUrl(URL.createObjectURL(f));
     setGrayChecking(true);
     const kind = await detectGrayscaleLocal(f);
@@ -445,6 +448,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
 
   function downloadResult() {
     if (!afterUrl) return;
+    trackEvent("photo_download");
     const a = document.createElement("a");
     a.href = afterUrl;
     a.download = afterName;
@@ -531,6 +535,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                     checked={mode === c.value}
                     onChange={() => {
                       setMode(c.value);
+                      trackEvent("photo_mode");
                       setError("");
                       setSuggestEnhance(false);
                       setAfterUrl("");

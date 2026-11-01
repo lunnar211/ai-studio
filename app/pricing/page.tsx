@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getEffectiveLimits } from "@/lib/limits";
 import { formatPaddlePrice, getPaddlePriceDisplay, paddleConfigured } from "@/lib/paddle";
 import { CheckoutButton } from "@/app/account/AccountActions";
-import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
   title: "Pricing — AI Studio",
@@ -135,7 +134,6 @@ export default async function PricingPage() {
         Premium stays active until the end of the current period. Full
         details on the <Link href="/refund-policy" className="underline">Refund Policy</Link> page.
       </p>
-      <CrossPromo />
     </div>
   );
 }

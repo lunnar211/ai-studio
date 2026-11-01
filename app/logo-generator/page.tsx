@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { LogoTool } from "./LogoTool";
-import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
   title: "AI Logo Generator — Original Logos from a Description",
@@ -80,7 +79,6 @@ export default function LogoPage() {
           <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">Why was my prompt refused?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">It matched a brand, character or public figure. Rephrase with an original concept and try again.</p></div>
         </div>
       </section>
-      <CrossPromo />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CrossPromo } from "@/components/site/CrossPromo";
 
 export const metadata: Metadata = {
   title: "Logo for a Coffee Shop — AI Studio",
@@ -46,7 +45,6 @@ export default function CoffeeShopPage() {
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
         Free tier: 10 requests per day, 3 variants per request. Prompts referencing existing brands are refused.
       </p>
-      <CrossPromo />
     </div>
   );
 }

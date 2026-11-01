@@ -4,15 +4,26 @@ import { useEffect, useState } from "react";
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    try {
-      if (!localStorage.getItem("ai-studio-cookie-choice")) setVisible(true);
-    } catch {
-      setVisible(false);
-    }
+    // Deferred via rAF so the effect never sets state synchronously
+    // (lint: react-hooks/set-state-in-effect). Behaviour unchanged:
+    // the banner appears only when no choice is stored yet.
+    const raf = requestAnimationFrame(() => {
+      try {
+        if (!localStorage.getItem("ai-studio-cookie-choice")) setVisible(true);
+      } catch {
+        setVisible(false);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
   if (!visible) return null;
   const choose = (value: string) => {
-    try { localStorage.setItem("ai-studio-cookie-choice", value); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("ai-studio-cookie-choice", value);
+      // Lets GatedAnalytics (and any other consent-gated code) react
+      // without a reload.
+      window.dispatchEvent(new Event("ai-studio-cookie-choice"));
+    } catch { /* ignore */ }
     setVisible(false);
   };
   return (
