@@ -19,7 +19,7 @@ import {
   runDeoldifyWithTensor,
   toGrayscale,
 } from "./deoldify-core";
-import { labToRgb, mergeLabLuminance, rgbToLab } from "./lab";
+import { mergeColorizeBanded } from "./lab";
 
 export const BROWSER_COLORIZE_MAX_EDGE = 2048;
 export const BROWSER_COLORIZE_ENGINE = "browser-ai-colorize";
@@ -54,13 +54,34 @@ export function browserColorizeSupported(): boolean {
   }
 }
 
-async function decodeImage(file: Blob): Promise<{ width: number; height: number; drawTo: (ctx: CanvasRenderingContext2D, w: number, h: number) => void }> {
+async function decodeImage(file: Blob): Promise<{
+  width: number;
+  height: number;
+  drawTo: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
+  close: () => void;
+}> {
+  // close() releases the decoded image as soon as the two small
+  // draws are done. Without it, a full-size phone photo (a 12 MP
+  // decode is ~48 MB) stays referenced through the whole model run
+  // + merge — on a phone that is the difference between finishing
+  // and the browser killing the tab (2026-11-01 iPhone crash report).
   if (typeof createImageBitmap === "function") {
     const bmp = await createImageBitmap(file);
+    let source: ImageBitmap | null = bmp;
     return {
       width: bmp.width,
       height: bmp.height,
-      drawTo: (ctx, w, h) => ctx.drawImage(bmp, 0, 0, w, h),
+      drawTo: (ctx, w, h) => {
+        if (source) ctx.drawImage(source, 0, 0, w, h);
+      },
+      close: () => {
+        try {
+          bmp.close();
+        } catch {
+          // Already closed.
+        }
+        source = null;
+      },
     };
   }
   const url = URL.createObjectURL(file);
@@ -71,10 +92,16 @@ async function decodeImage(file: Blob): Promise<{ width: number; height: number;
       img.onerror = () => reject(new Error("Could not read that image."));
       img.src = url;
     });
+    let source: HTMLImageElement | null = img;
     return {
       width: img.naturalWidth,
       height: img.naturalHeight,
-      drawTo: (ctx, w, h) => ctx.drawImage(img, 0, 0, w, h),
+      drawTo: (ctx, w, h) => {
+        if (source) ctx.drawImage(source, 0, 0, w, h);
+      },
+      close: () => {
+        source = null;
+      },
     };
   } finally {
     URL.revokeObjectURL(url);
@@ -220,6 +247,11 @@ export async function colorizeInBrowser(
     0
   );
 
+  // The decoded photo is no longer needed: the model runs on the
+  // 256px input and the merge reads the output-size canvas. Release
+  // it now, before the model + merge allocate their peak memory.
+  decoded.close();
+
   // Run the model: worker first, main thread if workers are blocked.
   let outRgba256: Uint8ClampedArray;
   try {
@@ -243,19 +275,16 @@ export async function colorizeInBrowser(
   up.ctx.drawImage(tmp.canvas, 0, 0, outW, outH);
   const upRgba = up.ctx.getImageData(0, 0, outW, outH).data;
 
-  // LAB merge: original L + model a/b, intensity-scaled.
-  const pixels = outW * outH;
-  const origLab = rgbToLab(stripAlpha(origRgba), pixels);
-  const modelLab = rgbToLab(stripAlpha(upRgba), pixels);
-  const merged = mergeLabLuminance(origLab, modelLab, intensity);
-  const mergedRgb = labToRgb(merged, pixels);
-  const mergedRgba = new Uint8ClampedArray(pixels * 4);
-  for (let p = 0; p < pixels; p++) {
-    mergedRgba[p * 4] = mergedRgb[p * 3];
-    mergedRgba[p * 4 + 1] = mergedRgb[p * 3 + 1];
-    mergedRgba[p * 4 + 2] = mergedRgb[p * 3 + 2];
-    mergedRgba[p * 4 + 3] = 255;
-  }
+  // LAB merge: original L + model a/b, intensity-scaled, in bands
+  // (see mergeColorizeBanded: exact output, far lower peak memory
+  // than the old whole-image version — the phone crash fix).
+  const mergedRgba = mergeColorizeBanded(
+    stripAlpha(origRgba),
+    stripAlpha(upRgba),
+    outW,
+    outH,
+    intensity
+  );
   const final = makeCanvas(outW, outH);
   final.ctx.putImageData(new ImageData(mergedRgba, outW, outH), 0, 0);
   const blob = await new Promise<Blob>((resolve, reject) => {

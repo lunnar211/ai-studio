@@ -106,3 +106,42 @@ export function mergeLabLuminance(
   }
   return out;
 }
+
+/**
+ * Full colorize merge in one call: original RGB + model RGB ->
+ * RGBA with the original's L and the model's intensity-scaled a/b.
+ * Done in 256-row bands because rgbToLab / mergeLabLuminance /
+ * labToRgb are all per-pixel (no spatial dependence), so banding is
+ * EXACT — same bytes as the whole-image version, far lower peak
+ * memory. The whole-image version held three ~37 MB Float32 buffers
+ * at once for a 2048px output, on top of the model + canvases,
+ * which killed the tab on phones (2026-11-01 iPhone crash report).
+ */
+export function mergeColorizeBanded(
+  originalRgb: Uint8Array,
+  modelRgb: Uint8Array,
+  width: number,
+  height: number,
+  intensity: number
+): Uint8ClampedArray<ArrayBuffer> {
+  const pixels = width * height;
+  const mergedRgba = new Uint8ClampedArray(pixels * 4);
+  const BAND_ROWS = 256;
+  for (let y0 = 0; y0 < height; y0 += BAND_ROWS) {
+    const rows = Math.min(BAND_ROWS, height - y0);
+    const bandPixels = width * rows;
+    const rgbOff = y0 * width * 3;
+    const origLab = rgbToLab(originalRgb.subarray(rgbOff, rgbOff + bandPixels * 3), bandPixels);
+    const modelLab = rgbToLab(modelRgb.subarray(rgbOff, rgbOff + bandPixels * 3), bandPixels);
+    const merged = mergeLabLuminance(origLab, modelLab, intensity);
+    const mergedRgb = labToRgb(merged, bandPixels);
+    const rgbaOff = y0 * width * 4;
+    for (let p = 0; p < bandPixels; p++) {
+      mergedRgba[rgbaOff + p * 4] = mergedRgb[p * 3];
+      mergedRgba[rgbaOff + p * 4 + 1] = mergedRgb[p * 3 + 1];
+      mergedRgba[rgbaOff + p * 4 + 2] = mergedRgb[p * 3 + 2];
+      mergedRgba[rgbaOff + p * 4 + 3] = 255;
+    }
+  }
+  return mergedRgba;
+}

@@ -79,6 +79,30 @@
   built, its model input must be desaturated the same way —
   a tinted input will blotch there too.
 
+## 2026-11-01 — iPhone: photo tool tab crashes + reloads (same day, master)
+
+- REPORT: on the owner's iPhone, uploading + choosing
+  Restore + Colorize crashed the tab and reloaded it.
+- DESKTOP REPRO: a 4032x3024 sepia photo colorized fine
+  (Done, 2048x1536px, no crash); a 20 MB PNG is cleanly
+  refused by the 10 MB limit, not a crash. So the crash is
+  phone-specific memory pressure, not a logic error — iOS
+  kills tabs that spike memory (jetsam), and the old pipeline
+  spiked hard: a 12 MP decoded photo (~48 MB) held through
+  the whole run + three ~37 MB whole-image Lab buffers at
+  2048px output, on top of the 64 MB model + WASM session.
+- FIX: (1) the decoded photo is now released (`close()`)
+  right after the two small draws, before the model runs;
+  (2) the LAB merge runs in 256-row bands
+  (`mergeColorizeBanded` in `lib/browser/lab.ts`) — the Lab
+  functions are per-pixel, so banding is byte-identical
+  output at a fraction of the peak (~6 MB of Lab buffers).
+  Verified: the same 4032x3024 photo still finishes
+  (Done, 2048x1536px) on the new build.
+- REGRESSION TEST: `tests/lab-merge.test.ts` (banded vs
+  whole-image merge byte-identical across band edges, plus
+  single-pixel alpha case).
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 
