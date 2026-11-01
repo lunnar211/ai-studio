@@ -41,6 +41,13 @@ import { edgeCapForPlan, encodeResult, mergeColorized } from "@/lib/ai/colorize"
 import { analyzeImageLocal } from "@/lib/ai/image-analysis";
 import { routeColorizeStart, routeUpscaleStart, type AiError } from "@/lib/ai/router";
 import { pollSpaceColorize, spaceConfigured, startSpaceColorize, SpaceError } from "@/lib/ai/gradio";
+import {
+  GEMINI_IMAGE_COST_PER_IMAGE,
+  GEMINI_PENDING_PREDICTION_ID,
+  geminiColorize,
+  geminiImageConfigured,
+  geminiImageModel,
+} from "@/lib/ai/adapters/gemini-image";
 import { colorizeAttemptOrder } from "@/lib/ai/tiers";
 import type { AiProviderId } from "@/lib/ai/types";
 
@@ -165,6 +172,7 @@ async function startColorizeForJob(
 ): Promise<{ predictionId: string; provider: string; model: string | null }> {
   const allSettings = await getSettings();
   const hfToggleOff = allSettings["ai.provider.huggingface"] === "false";
+  const geminiToggleOff = allSettings["ai.provider.gemini"] === "false";
   let lastErr: unknown = null;
   for (const tier of colorizeAttemptOrder(plan)) {
     try {
@@ -172,6 +180,10 @@ async function startColorizeForJob(
         if (!spaceConfigured() || hfToggleOff) continue;
         const started = await startSpaceColorize(input, "image/jpeg");
         return { predictionId: started.eventId, provider: "huggingface", model: null };
+      }
+      if (tier === "gemini") {
+        if (!geminiImageConfigured() || geminiToggleOff) continue;
+        return { predictionId: GEMINI_PENDING_PREDICTION_ID, provider: "gemini", model: geminiImageModel() };
       }
       const started = await routeColorizeStart({ image: input, kind: "jpeg", userId: job.userId });
       return { predictionId: started.predictionId, provider: "replicate", model: null };
@@ -329,6 +341,43 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       provider: "huggingface",
       model: job.model ?? "hf-space",
       extraCost: 0,
+    });
+  }
+  // Nano Banana: synchronous call on the first COLORIZING poll.
+  // The job was created with predictionId "gemini:pending"; running
+  // the call here (not at job creation) keeps job creation fast and
+  // lets the client poll normally. On success the shared
+  // afterColorizeSuccess merges + upscales/finalizes in this same
+  // request, so a delivered image is never re-run. On a transient
+  // failure (rate limit, overload, network) return current state:
+  // the client retries, and the retry only re-runs Gemini when no
+  // image was produced yet, so a delivered photo is never billed
+  // twice. The 45s call timeout fits this route's maxDuration 60
+  // with the merge + finalize after it.
+  if (job.provider === "gemini") {
+    if (job.predictionId !== GEMINI_PENDING_PREDICTION_ID || !job.inputData) {
+      await failJob(job, "NO_PREDICTION", "That job lost its reference. Please run it again.");
+      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "That job lost its reference. Please run it again." }));
+    }
+    let modelOut: Buffer;
+    try {
+      const out = await geminiColorize({
+        image: Buffer.from(job.inputData, "base64"),
+        mime: job.inputMime || "image/jpeg",
+      });
+      modelOut = out.buffer;
+    } catch (err) {
+      if ((err as { code?: string })?.code === "AI_NOT_CONFIGURED") {
+        await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
+      }
+      console.error("photo/jobs: gemini colorize error", err);
+      return NextResponse.json(publicState(job));
+    }
+    return await afterColorizeSuccess(job, modelOut, plan, {
+      provider: "gemini",
+      model: job.model ?? geminiImageModel(),
+      extraCost: GEMINI_IMAGE_COST_PER_IMAGE,
     });
   }
   // Tier C: image-pool colorize.

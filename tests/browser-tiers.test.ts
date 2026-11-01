@@ -108,9 +108,13 @@ describe("onnxruntime-web version pin", () => {
 });
 
 describe("tier ordering", () => {
-  it("Free uses the free server route only (never paid GPU); Premium tries paid GPU first, then the Space", () => {
-    expect(colorizeAttemptOrder("FREE")).toEqual(["space"]);
-    expect(colorizeAttemptOrder("PREMIUM")).toEqual(["replicate", "space"]);
+  it("Free tries Space then Gemini (never paid GPU); Premium tries paid GPU first, then Space, then Gemini", () => {
+    // Owner-authorized 2026-11-01: Gemini Nano Banana joins the order
+    // after the free Space (see tiers.ts). FREE still never touches
+    // Replicate paid GPU.
+    expect(colorizeAttemptOrder("FREE")).toEqual(["space", "gemini"]);
+    expect(colorizeAttemptOrder("FREE")).not.toContain("replicate");
+    expect(colorizeAttemptOrder("PREMIUM")).toEqual(["replicate", "space", "gemini"]);
   });
 });
 

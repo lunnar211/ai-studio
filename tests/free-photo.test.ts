@@ -15,13 +15,18 @@ import { analyzeImageLocal, GRAYSCALE_CHROMA_THRESHOLD } from "../lib/ai/image-a
 import { LIMITS } from "../lib/limits";
 import { formatModelProgress } from "../lib/browser/deoldify";
 
-describe("free-tier routing (never bill free users for GPU)", () => {
-  it("routes FREE server jobs to the free Space only, never to paid GPU", () => {
-    expect(colorizeAttemptOrder("FREE")).toEqual(["space"]);
+describe("free-tier routing (never paid GPU for free users)", () => {
+  it("routes FREE server jobs to Space then Gemini, never to paid GPU", () => {
+    // Owner-authorized 2026-11-01: Nano Banana (Gemini, ~$0.039/image
+    // on the owner's bill) is the server fallback when the free Space
+    // is unconfigured. The hard rule stays: FREE never touches
+    // Replicate paid GPU, and the free Space stays first.
+    expect(colorizeAttemptOrder("FREE")).toEqual(["space", "gemini"]);
+    expect(colorizeAttemptOrder("FREE")).not.toContain("replicate");
     expect(planMayUsePaidGpu("FREE")).toBe(false);
   });
-  it("routes PREMIUM jobs to paid GPU first, then the free Space", () => {
-    expect(colorizeAttemptOrder("PREMIUM")).toEqual(["replicate", "space"]);
+  it("routes PREMIUM jobs to paid GPU first, then Space, then Gemini", () => {
+    expect(colorizeAttemptOrder("PREMIUM")).toEqual(["replicate", "space", "gemini"]);
     expect(planMayUsePaidGpu("PREMIUM")).toBe(true);
   });
   it("declares free photos unlimited in the single limits config", () => {

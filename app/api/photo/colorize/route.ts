@@ -48,6 +48,11 @@ import { prepareAiInput } from "@/lib/ai/colorize";
 import { sharpRestore } from "@/lib/ai/adapters/sharp-local";
 import { routeColorizeStart, routeRestoreStart, routeUpscaleStart, type AiError } from "@/lib/ai/router";
 import { colorizeModel } from "@/lib/ai/adapters/replicate";
+import {
+  GEMINI_PENDING_PREDICTION_ID,
+  geminiImageConfigured,
+  geminiImageModel,
+} from "@/lib/ai/adapters/gemini-image";
 import { colorizeAttemptOrder } from "@/lib/ai/tiers";
 import { spaceConfigured, spaceId, startSpaceColorize, SpaceError } from "@/lib/ai/gradio";
 
@@ -219,11 +224,14 @@ export async function POST(req: Request) {
   //
   // TIER-AWARE CREDITS (FREE + UNLIMITED model): credits are decided by
   // the tier that ACTUALLY starts, not upfront. Free jobs (Space,
-  // browser, Sharp) cost 0 and are never budget-checked. Only a
-  // Premium paid-GPU start consumes the GPU budget — and when that
-  // budget is reached, Premium falls back to the free Space instead
-  // of blocking. Free users never reach the paid-GPU branch at all:
-  // colorizeAttemptOrder("FREE") is ["space"] by construction.
+  // browser, Sharp) cost 0 credits and are never budget-checked.
+  // Only a Premium paid-GPU start consumes the GPU budget — and when
+  // that budget is reached, Premium falls back to the free Space
+  // instead of blocking. Free users never reach the paid-GPU
+  // (Replicate) branch at all. The Gemini tier is the one exception
+  // to "free costs nothing": it bills the owner's Gemini account
+  // ~$0.039 per photo (owner-authorized 2026-11-01, see tiers.ts),
+  // recorded as the job's cost estimate — never as user credits.
   //
   // Restore mode: the restore prediction runs FIRST (stage
   // "restoring") for Premium only; its output becomes the colorize
@@ -237,7 +245,7 @@ export async function POST(req: Request) {
   let firstStage = "";
   let tierProvider: string | null = null;
   let tierModel: string | null = null;
-  let tierUsed: "replicate" | "space" | null = null;
+  let tierUsed: "replicate" | "space" | "gemini" | null = null;
   let restoreNotice: string | null = null;
   let colorizeInput = aiInput.buffer;
   // Premium GPU budget, checked lazily only when a paid-GPU tier is
@@ -290,13 +298,17 @@ export async function POST(req: Request) {
       if (willColorize) {
         let lastErr: unknown = null;
         let sawNotConfigured = false;
-        // Server tiers in plan order (Free: Space only; Premium:
-        // paid GPU first, then Space). A failed tier falls through
-        // to the next; no dead job is stored if all fail.
-        // (Tier A, browser colorize, runs client-side: first for Free
-        // users, as a fallback for Premium users; see tiers.ts.)
+        // Server tiers in plan order (Free: Space, then Gemini;
+        // Premium: paid GPU first, then Space, then Gemini). A failed
+        // tier falls through to the next; no dead job is stored if
+        // all fail. (Tier A, browser colorize, runs client-side:
+        // first for Free users, as a fallback for Premium users;
+        // see tiers.ts.) The Gemini tier records only an intent
+        // here — the synchronous Nano Banana call runs on the
+        // job's first COLORIZING poll, so this POST stays fast.
         const allSettings = await getSettings();
         const hfToggleOff = allSettings["ai.provider.huggingface"] === "false";
+        const geminiToggleOff = allSettings["ai.provider.gemini"] === "false";
         for (const tier of colorizeAttemptOrder(userPlan)) {
           try {
             if (tier === "space") {
@@ -309,6 +321,15 @@ export async function POST(req: Request) {
               tierProvider = "huggingface";
               tierModel = spaceId();
               tierUsed = "space";
+            } else if (tier === "gemini") {
+              if (!geminiImageConfigured() || geminiToggleOff) {
+                sawNotConfigured = true;
+                continue;
+              }
+              predictionId = GEMINI_PENDING_PREDICTION_ID;
+              tierProvider = "gemini";
+              tierModel = geminiImageModel();
+              tierUsed = "gemini";
             } else {
               // Paid GPU: Premium only, and only within its budget.
               // Over budget, fall through to the free Space — never block.
