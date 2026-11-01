@@ -181,7 +181,11 @@ export async function POST(req: Request) {
     );
   }
   // Restore colorizes grayscale photos and skips colorize for colour ones.
-  const willColorize = opts.mode === "colorize" || local.isGrayscale;
+  // The explicit "Colorize anyway" override also counts here, so a
+  // user who knows their faded/sepia photo is B&W gets colorize on
+  // the server path too, not just the browser path.
+  const willColorize =
+    opts.mode === "colorize" || local.isGrayscale || opts.colorizeAnyway === "true";
 
   // FREE colour-restore has no free server step: model repair is a
   // paid-GPU feature and free users are never routed to paid GPU.

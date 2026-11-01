@@ -33,6 +33,28 @@
   existing connect-src entry was never enough). Regression test
   extended to fail if the CDN origin is ever removed.
 
+## 2026-11-01 — sepia old photos refused colorize (same day, master)
+
+- THE "STILL ERROR": the user's old photo was measured as
+  "colour" (raw mean channel difference 24.6 vs threshold 8) and
+  got Enhance-only, because age yellows old photos into sepia and
+  sepia carries channel differences while containing no real colour
+  information. Worse, in Restore mode the "Colorize anyway"
+  override button did not exist, so a misclassified photo there had
+  NO path to colorize at all.
+- FIX: new shared sepia-aware rule (`lib/photo/monochrome.ts`,
+  used by both browser and server detectors): monochrome when raw
+  chroma < 8 OR under 35% of bright pixels are clearly colourful
+  (saturation > 0.35, pixels darker than 40 ignored). Measured
+  anchors: user sepia photo 0.248 → grayscale; pure B&W 0;
+  natural colour photo 0.421 → colour; saturated graphic 0.972.
+  "Colorize anyway" now shows in Restore mode too, the restore note
+  follows the override, and the server restore path honors the
+  override when deciding whether to colorize.
+- REGRESSION TEST: `tests/monochrome.test.ts` (6 tests: grey,
+  sepia mix, multi-hue colour, dark-pixel guard, 0.34/0.36
+  boundary, RGB buffers).
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 

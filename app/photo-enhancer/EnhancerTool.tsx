@@ -13,6 +13,7 @@ import {
   type BrowserColorizeProgress,
 } from "@/lib/browser/deoldify";
 import { compressForUpload } from "@/lib/browser/compress-image";
+import { analyzeMonochrome } from "@/lib/photo/monochrome";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const POLL_MS = 2500;
@@ -101,17 +102,12 @@ async function detectGrayscaleLocal(file: File): Promise<"grayscale" | "color" |
       if (!ctx) return null;
       ctx.drawImage(img, 0, 0, w, h);
       const data = ctx.getImageData(0, 0, w, h).data;
-      let sum = 0;
-      const pixels = w * h;
-      for (let p = 0; p < pixels; p++) {
-        const o = p * 4;
-        sum += Math.max(
-          Math.abs(data[o] - data[o + 1]),
-          Math.abs(data[o + 1] - data[o + 2]),
-          Math.abs(data[o] - data[o + 2])
-        );
-      }
-      return sum / pixels < 8 ? "grayscale" : "color";
+      // Sepia-aware rule (lib/photo/monochrome): the old raw-chroma
+      // check alone called sepia old photos "colour" (raw ~25) and
+      // refused them colorize. The shared rule also counts clearly
+      // colourful pixels, which sepia fails (~0.25) and real colour
+      // passes (~0.42+).
+      return analyzeMonochrome(data, 4).kind;
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -597,12 +593,17 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         ? "Quality: Standard"
         : "";
   // The grayscale gate is a HINT, never a block: a faded/sepia photo
-  // often measures as "colour". The user may always override it.
-  const showGrayscaleHint = isColorizeMode && mode === "colorize" && grayKind === "color" && !colorizeAnyway;
+  // often measures as "colour". The user may always override it —
+  // in Restore mode too: before this fix the override button only
+  // existed in Colorize mode, so a misclassified photo in Restore
+  // mode had NO path to colorize at all (the 2026-11-01 "still
+  // error": Restore + server unavailable + sepia-as-colour offered
+  // Enhance only, with no override in reach).
+  const showGrayscaleHint = isColorizeMode && grayKind === "color" && !colorizeAnyway;
   const showGrayscaleSuggest = mode === "enhance" && grayKind === "grayscale";
   const restoreNote =
     mode === "restore" && !colorizeAvailable
-      ? grayKind === "color"
+      ? grayKind === "color" && !colorizeAnyway
         ? "Server restore is not set up right now. Free Enhance below sharpens and upscales this colour photo instead — model face/scratch repair needs the server."
         : "Server restore is not set up right now. The free browser path below can colorize this photo, but it cannot repair faces or scratches."
       : mode === "restore" && grayKind === "grayscale"
