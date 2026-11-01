@@ -157,3 +157,91 @@ All work on the `full-upgrade` branch unless noted. Production
   speed note, with the gallery + Nepali switch.
 - Verified: tsc clean, eslint clean on touched files, vitest 61/61,
   build EXIT=0.
+
+## P0 — leak fix: neutral badges, 3 modes, image key pool (`8de51c9`)
+
+- The live result text "Enhanced (standard quality — set REPLICATE_API_TOKEN for AI upscaling)"
+  exposed the provider name and env var name to every visitor. It is gone: every API response and
+  result UI now carries only generic messages ("Done. Output W x Hpx." / "Something went wrong.
+  Please try again.") and the neutral badges "Quality: AI Enhanced" / "Quality: Standard".
+  Real errors go to server logs (console.error) only. No key VALUE was ever shown, so no
+  rotation was needed for this string — but the string itself is removed everywhere, including
+  the capabilities route (booleans only), logo routes (no model/provider in responses), and
+  the CSP (provider API origins removed in Phase 6 after verifying no client code calls them).
+- Exactly 3 modes now: Enhance 1 / Colorize 2 / Restore + Colorize 3 credits (colorize-hd removed).
+  AI is the default path; the Sharp pipeline runs only after every AI call fails.
+- NEW lib/ai-pool.ts: AI_API_KEYS comma-separated IMAGE-provider key pool (Replicate tokens
+  first; legacy REPLICATE_API_TOKEN appended automatically), round-robin + failover on
+  429/401/402/5xx. LLM/text keys (Groq, Gemini, OpenRouter, NVIDIA, ElevenLabs) are never read
+  here — they cannot colorize images. Model slugs/versions come from ENV ONLY (no hardcoded
+  defaults). Sharp pre-resize to max 1536px before any AI call; independent steps via Promise.all;
+  no tiling (the wired models expose no tiling parameter, so downscaling is the honest path).
+  maxDuration 60 + runtime nodejs on the colorize route; progress stages incl. "restoring".
+- GFPGAN restore input schema is PROVISIONAL (not token-verified — Replicate returned 401 for
+  the model lookup and it was not re-requested). A wrong schema fails honestly with a notice,
+  never a fake restore. CodeFormer stays excluded (S-Lab non-commercial licence).
+- Verified at P0 close: tsc clean, eslint clean on touched files, vitest 73/73, build EXIT=0.
+
+## Phase 5 — landing pages + brand-once titles + page OG images (`943c139`)
+
+- NEW landing pages /colorize-black-and-white-photo, /restore-old-photos, /photo-upscaler,
+  /ai-logo-maker: unique title/meta/OG/Twitter each, JSON-LD (SoftwareApplication + FAQPage +
+  BreadcrumbList), unique content, FAQ, tool CTA, internal links to each other + tools +
+  pricing + FAQ. Footer links all four. Sitemap gains the four pages; robots base URL fixed
+  to the sandy-sigma host (still disallows /admin, /account, /signin, /onboarding, /api).
+- Brand exactly once in every <title>: home title is absolute; Pricing/FAQ/use-case titles no
+  longer carry the brand suffix (the template adds it once). OG/Twitter titles keep their own
+  single brand mention (they are not templated).
+- Photo-enhancer metadata now mentions colorize/restore/HD and still never mentions logos;
+  its OG image is the new /og-photo.jpg. NEW page OG images (sharp, ~30 KB each):
+  og-photo/colorize/restore/upscaler/logo.jpg.
+- Analytics events verified firing + consent-gated (photo_upload/mode/result/download,
+  upgrade_click). Core Web Vitals by inspection: next/font display:swap, reserved slider
+  aspect, no static <img> (only user blob URLs + QR data URL).
+- Verified: tsc clean, eslint clean on touched files, vitest 73/73, build EXIT=0.
+
+## Phase 6 — security, reliability, quality (`6bd1d3b`)
+
+- NEW lib/concurrency.ts: fail-fast cap on concurrent AI prediction starts
+  (AI_MAX_CONCURRENT_STARTS, default 10; in-memory, same single-instance scope as the rate
+  limiter). Wired into routeColorizeStart/routeUpscaleStart/routeRestoreStart; a full slot
+  returns a rate-limited error the routes already map to a friendly 429.
+- CSP tightened: api.groq.com + api.replicate.com removed from connect-src after verifying no
+  client code fetches those hosts (all AI calls go through server routes). Security headers
+  verified live on the local server: CSP, HSTS, X-Frame DENY, nosniff, Referrer, Permissions.
+- Paddle webhook: signature verified via SDK + idempotent (pre-existing, now covered by
+  tests/paddle-webhook.test.ts: missing/bogus signature -> 400 before any DB write).
+- Schema validation (zod) on colorize/enhance routes, safe generic error messages, structured
+  error log (errorLog + /admin/logs), health endpoint GET /api/health (200, liveness only).
+  Rate limiting 5/min per IP + 10 MB size limit verified live (6th request in a minute -> 429;
+  corrupted/oversize -> 400 generic; valid enhance -> 200 X-Quality: standard with no keys).
+- NEW tests: file-validate (magic bytes), grayscale (server gate), rate-limit (5/min
+  in-memory), credits (1/2/3 costs, 10/100 budgets), concurrency slots, manual-image-set
+  (100KB B&W portrait, ~9MB scan, colour, corrupted, transparent PNG, EXIF rotation, tiny
+  thumbnail, scratched photo, 1536px cap). NEW e2e a11y-mobile spec: 360px no-overflow on
+  home, both tools, one landing page; keyboard-only tab reachability; landing CTA href.
+  Fixed a pre-existing env-dependent pricing test (Paddle unconfigured locally shows the
+  honest unconfigured message). vitest alias "@" added to vitest.config.ts so route modules
+  can be tested directly.
+- Contrast fix: primary buttons now use the dark brand/accent variants (white text on #EC4899 /
+  #0891B2 failed AA); accessibility 100 on all measured pages after the fix.
+- Lighthouse (local `next start`, real runs, NOT production): Home 96/100/100/100;
+  colorize landing 91/100/100/100; photo-enhancer performance varied 91/89/84 across runs
+  (total-blocking-time on sandbox CPU) with a11y/BP/SEO 100 — the 90+ performance target is
+  NOT reliably met locally and must be re-measured on the preview.
+- Verified: tsc clean, eslint clean on touched files, vitest 102/102, Playwright 19/19,
+  build EXIT=0.
+
+## Polish — public-domain gallery on Home (`c38fb35`)
+
+- 3 real 19th-century photographs (public domain via Wikimedia Commons) in public/gallery,
+  verified grayscale (mean chroma 0.0) after a faithful sepia-to-black-and-white conversion,
+  so they pass the tool's own grayscale gate. No synthetic image is presented as a real photo
+  and no fake "after" image is shown: the section is explicitly labelled as originals, not
+  results, with a source-file link + credit line per photo and a CTA to colorize.
+  Gallery uses next/image with lazy loading.
+- Nepali language switch: NOT built (deferred, optional) — a partial toggle would show
+  mixed-language pages; full translation needs professional Nepali copy for all tool flows.
+  Recorded as an open item, not silently dropped.
+- Verified: tsc clean, eslint clean, vitest 102/102, Playwright 19/19 (incl. 360px overflow
+  on Home with the gallery), build EXIT=0, gallery images 200 on local server.
