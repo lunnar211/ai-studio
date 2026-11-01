@@ -3,7 +3,8 @@
 // Model facts (verified 2026-11-01 from the author's own write-up,
 // "Browser-Based AI Image Colorization with DeOldify and ONNX Runtime"):
 // - File: deoldify.quant.onnx — an INT8-quantized DeOldify export,
-//   ~25 MB (down from ~100 MB), hosted on GitHub raw.
+//   served at ~64 MB (measured 2026-11-01; an earlier "~25 MB" note
+//   was wrong), hosted on GitHub raw.
 // - Input: float32 tensor named "input", shape [1, 3, 256, 256],
 //   NCHW, raw 0–255 values (the reference code does NOT divide by 255).
 // - Output: float32 tensor named "out", shape [1, 3, 256, 256],
@@ -24,9 +25,11 @@
 export const DEOLDIFY_MODEL_URL =
   "https://raw.githubusercontent.com/linmingren/openmodels/main/models/deoldify/deoldify.quant.onnx";
 export const DEOLDIFY_CACHE_NAME = "colorize-model-cache-v1";
-/** Documented model size (~25 MB). Used for progress when the server
- *  does not send a Content-Length; the UI always says "about 25 MB". */
-export const DEOLDIFY_MODEL_SIZE_ESTIMATE = 25 * 1024 * 1024;
+/** Fallback model size, used ONLY when the server sends no
+ *  Content-Length. Measured 2026-11-01: the file served at
+ *  DEOLDIFY_MODEL_URL is ~64 MB (an earlier "~25 MB" note was wrong
+ *  and is corrected here — never quote 25 MB to users). */
+export const DEOLDIFY_MODEL_SIZE_ESTIMATE = 64 * 1024 * 1024;
 export const DEOLDIFY_INPUT_SIZE = 256;
 export const DEOLDIFY_INPUT_NAME = "input";
 export const DEOLDIFY_OUTPUT_NAME = "out";

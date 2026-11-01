@@ -262,5 +262,5 @@ export function formatModelProgress(p: BrowserColorizeProgress): string {
   const mb = (n: number) => (n / (1024 * 1024)).toFixed(1);
   const total = p.totalBytes ?? DEOLDIFY_MODEL_SIZE_ESTIMATE;
   const pct = Math.min(100, Math.round((p.receivedBytes / total) * 100));
-  return `Downloading the colorize model (about 25 MB, one-time) — ${mb(p.receivedBytes)} MB of ${mb(total)} MB (${pct}%). After this it is cached on your device.`;
+  return `Downloading the colorize model (one-time) — ${mb(p.receivedBytes)} MB of ${mb(total)} MB (${pct}%). After this it is cached on your device.`;
 }

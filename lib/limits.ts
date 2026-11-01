@@ -7,32 +7,53 @@
 // it comes from this module. Change a limit here and the whole site
 // agrees.
 //
-// Canonical policy (Phase 2 decision, implemented everywhere):
-// - Photo credits: Free 10/day, Premium 100/day.
-//   Enhance = 1 credit, Colorize = 2, Restore + Colorize = 3.
-//   (P0: exactly 3 modes. Colorize now always includes the upscale
-//   step, so it keeps its old 2-credit price; Restore + Colorize
-//   adds a restoration pass first, so it costs 3.)
-// - Logo requests: Free 10/day, Premium 100/day (1 request = 3 variants).
-// - Premium-only: HD 4x up to 4096px longest edge, face enhance,
-//   priority generation. Free users get up to 2x / 2048px.
-// - Signing in does NOT raise free limits: signed-in free = same 10/day
-//   as guests. Signing in adds history, favorites, and account features.
+// CANONICAL POLICY — FREE + UNLIMITED PHOTOS (2026-11-01, owner decision):
+// - Photo jobs on FREE routes are UNLIMITED, forever, for every user
+//   including guests. Free routes = browser on-device colorize (Tier A),
+//   the owner's free server route (Tier B, Space), and local Sharp
+//   enhance / cleanup. There is NO daily photo cap, NO credit balance,
+//   and NO "will use N credits" copy on any free path.
+// - Abuse protection is NOT a usage cap: the 5-requests-per-minute
+//   per-IP limiter still applies to every photo route. At 5/min an IP
+//   can still make thousands of uses per day — the limiter only stops
+//   bursts and bots.
+// - Paid-GPU jobs (image pool) bill the owner per run, so they stay
+//   Premium-only: faster server processing, HD 4x up to 4096px, face
+//   enhance, priority. Premium GPU jobs use the fair-use budget below
+//   (100/day) — that budget is a Premium GPU guardrail, never a free
+//   limit, and it never appears on free paths. Free users are NEVER
+//   routed to paid GPU: when the free routes are unavailable, free
+//   users get the free browser path, never a GPU bill and never a block.
+// - Logo requests keep their own daily budgets (a separate capability
+//   with its own provider limits): Free 10/day, Premium 100/day
+//   (1 request = 3 variants).
+// - Premium-only photo perks: HD 4x upscaling up to 4096px longest
+//   edge, face enhance on upscales, priority generation. Free photo
+//   output is up to 2x / 2048px.
+// - Signing in does NOT raise free photo limits (there is no free
+//   photo limit to raise): signed-in free = unlimited photos, same as
+//   guests. Signing in adds history, favorites, and account features.
 
 import { getSettings } from "./settings";
 
 export type PhotoMode = "enhance" | "colorize" | "restore";
 
 export const LIMITS = {
-  photoCreditsFree: 10,
-  photoCreditsPremium: 100,
-  logoRequestsFree: 10,
-  logoRequestsPremium: 100,
+  /** True: photo jobs on free routes have no daily cap, ever. */
+  photoFreeUnlimited: true,
+  /**
+   * Cost of a PREMIUM paid-GPU job only, in GPU-budget units.
+   * Free paths NEVER charge these costs and never display them.
+   */
   photoCreditCost: {
     enhance: 1,
     colorize: 2,
     restore: 3,
   } as Record<PhotoMode, number>,
+  /** Premium paid-GPU fair-use budget per day (Premium only). */
+  photoCreditsPremium: 100,
+  logoRequestsFree: 10,
+  logoRequestsPremium: 100,
   photoModeLabel: {
     enhance: "Enhance",
     colorize: "Colorize",
@@ -43,6 +64,7 @@ export const LIMITS = {
   /** Upscale scale available by plan (2x for all, 4x Premium-only). */
   hdScale: { FREE: 2, PREMIUM: 4 } as Record<"FREE" | "PREMIUM", number>,
   premiumPerks: [
+    "Faster paid-GPU server processing",
     "HD 4x upscaling up to 4096px longest edge",
     "Face enhance on upscales",
     "Priority generation",
@@ -50,19 +72,19 @@ export const LIMITS = {
     "No ads",
   ],
   freePerks: [
+    "Unlimited photo enhance, colorize and restore via the free routes",
     "Logo requests with 3 variants each",
-    "Photo enhance, colorize and restore within credits",
     "SVG and 1024px PNG downloads",
     "No account, no payment details",
   ],
 } as const;
 
 export interface EffectiveLimits {
-  photoCreditsFree: number;
+  photoFreeUnlimited: boolean;
   photoCreditsPremium: number;
+  photoCreditCost: Record<PhotoMode, number>;
   logoRequestsFree: number;
   logoRequestsPremium: number;
-  photoCreditCost: Record<PhotoMode, number>;
 }
 
 /** Limits with admin SiteSetting overrides applied (defaults = LIMITS). */
@@ -73,18 +95,24 @@ export async function getEffectiveLimits(): Promise<EffectiveLimits> {
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
   return {
-    photoCreditsFree: num("enhanceDailyFree", LIMITS.photoCreditsFree),
+    photoFreeUnlimited: true,
+    // The admin "enhanceDailyPremium" setting is the Premium GPU budget.
+    // There is no free photo budget anymore (free photos are unlimited).
     photoCreditsPremium: num("enhanceDailyPremium", LIMITS.photoCreditsPremium),
+    photoCreditCost: { ...LIMITS.photoCreditCost },
     logoRequestsFree: num("logoDailyFree", LIMITS.logoRequestsFree),
     logoRequestsPremium: num("logoDailyPremium", LIMITS.logoRequestsPremium),
-    photoCreditCost: { ...LIMITS.photoCreditCost },
   };
 }
 
-/** Photo credit budget for a plan (uses the effective limits). */
+/**
+ * Premium paid-GPU budget per day. Free photos are unlimited, so this
+ * is only ever consulted for Premium GPU jobs — never for free paths.
+ */
 export async function photoCreditBudgetFor(plan: "FREE" | "PREMIUM"): Promise<number> {
+  if (plan === "FREE") return Number.POSITIVE_INFINITY;
   const l = await getEffectiveLimits();
-  return plan === "PREMIUM" ? l.photoCreditsPremium : l.photoCreditsFree;
+  return l.photoCreditsPremium;
 }
 
 /** Logo request budget for a plan (uses the effective limits). */

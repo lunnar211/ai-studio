@@ -5,6 +5,9 @@ import { prisma } from "./prisma";
 export const SETTING_DEFAULTS: Record<string, string> = {
   logoDailyFree: "10",
   logoDailyPremium: "100",
+  // Legacy: free photos are unlimited since the free-unlimited change,
+  // so enhanceDailyFree no longer gates anything. enhanceDailyPremium
+  // remains the Premium paid-GPU photo budget per day.
   enhanceDailyFree: "10",
   enhanceDailyPremium: "100",
   groqCostPerJobUsd: "0.001",

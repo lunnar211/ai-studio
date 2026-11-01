@@ -100,14 +100,16 @@ describe("onnxruntime-web version pin", () => {
     expect(ORT_WEB_VERSION).toBe(installed);
     expect(ortWasmPaths()).toContain(ORT_WEB_VERSION);
   });
-  it("documents the ~25 MB model size estimate", () => {
-    expect(DEOLDIFY_MODEL_SIZE_ESTIMATE).toBe(25 * 1024 * 1024);
+  it("documents the ~64 MB model size estimate", () => {
+    // Measured 2026-11-01 from the model host (64,020,138 bytes);
+    // the old ~25 MB figure was wrong and misled the download UI.
+    expect(DEOLDIFY_MODEL_SIZE_ESTIMATE).toBe(64 * 1024 * 1024);
   });
 });
 
 describe("tier ordering", () => {
-  it("Free tries the Space before Replicate; Premium the reverse", () => {
-    expect(colorizeAttemptOrder("FREE")).toEqual(["space", "replicate"]);
+  it("Free uses the free server route only (never paid GPU); Premium tries paid GPU first, then the Space", () => {
+    expect(colorizeAttemptOrder("FREE")).toEqual(["space"]);
     expect(colorizeAttemptOrder("PREMIUM")).toEqual(["replicate", "space"]);
   });
 });

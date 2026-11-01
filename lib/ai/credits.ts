@@ -1,14 +1,18 @@
-// Photo credit accounting — reads the SINGLE limits config
+// Photo GPU-budget accounting — reads the SINGLE limits config
 // (lib/limits.ts); this module only implements the accounting, it does
-// not define any number. Signed-in users: credits spent today = sum of
-// AiUsageLog credits for photo jobs, falling back to Job rows (whose
-// inputSummary records the mode) when the usage table does not exist
-// yet (schema not pushed). Guests: the per-IP limiter bucket holds the
-// free budget in units and each credit consumes one unit.
+// not define any number.
+//
+// FREE + UNLIMITED MODEL (2026-11-01): photo jobs on free routes
+// (browser, Space, Sharp) NEVER consume anything here. This module
+// exists only for Premium paid-GPU jobs, which draw from the Premium
+// GPU fair-use budget. Signed-in Premium usage = sum of AiUsageLog
+// credits for photo jobs, falling back to Job rows when the usage
+// table does not exist yet (schema not pushed). Guests never reach
+// this module for photos: guests are always on free routes, and the
+// only guest gate is the 5/min per-IP limiter (not a credit bucket).
 
 import { prisma } from "../prisma";
 import { countJobsToday } from "../settings";
-import { checkAiRateLimit, getClientIp } from "../rate-limit";
 import {
   LIMITS,
   photoCreditBudgetFor,
@@ -16,6 +20,7 @@ import {
 } from "../limits";
 
 export type { PhotoMode };
+/** Premium paid-GPU cost per mode. Free paths never charge this. */
 export const PHOTO_CREDIT_COST = LIMITS.photoCreditCost;
 export const PHOTO_MODE_LABEL = LIMITS.photoModeLabel;
 
@@ -52,38 +57,25 @@ export async function photoCreditBudget(plan: "FREE" | "PREMIUM"): Promise<numbe
   return photoCreditBudgetFor(plan);
 }
 
-/** Signed-in credit check. Returns remaining AFTER this job if allowed. */
+/**
+ * Premium paid-GPU budget check. Returns remaining AFTER this job if
+ * allowed. FREE callers always pass with cost 0 — free jobs must never
+ * be blocked by this check (routes bypass it entirely for free paths;
+ * this guard exists so a mistaken call cannot block a free user).
+ */
 export async function checkPhotoCredits(opts: {
   userId: string;
   plan: "FREE" | "PREMIUM";
   mode: PhotoMode;
 }): Promise<{ ok: boolean; remaining: number; budget: number; cost: number }> {
+  if (opts.plan === "FREE") {
+    return { ok: true, remaining: Number.POSITIVE_INFINITY, budget: Number.POSITIVE_INFINITY, cost: 0 };
+  }
   const cost = PHOTO_CREDIT_COST[opts.mode];
   const budget = await photoCreditBudget(opts.plan);
   const used = await photoCreditsUsedToday(opts.userId);
   const remaining = Math.max(0, budget - used - cost);
   return { ok: used + cost <= budget, remaining, budget, cost };
-}
-
-/** Guest credit check: consumes `cost` units from the per-IP bucket. */
-export async function checkGuestPhotoCredits(
-  req: Request,
-  mode: PhotoMode
-): Promise<{ ok: boolean; remaining: number; budget: number; cost: number }> {
-  const cost = PHOTO_CREDIT_COST[mode];
-  const budget = await photoCreditBudgetFor("FREE");
-  const ip = getClientIp(req);
-  let remaining = budget;
-  let ok = true;
-  for (let i = 0; i < cost; i++) {
-    const r = await checkAiRateLimit(ip, "enhance", budget);
-    remaining = r.remaining;
-    if (!r.ok) {
-      ok = false;
-      break;
-    }
-  }
-  return { ok, remaining, budget, cost };
 }
 
 /** Count of signed-in photo jobs today (for the account page). */
