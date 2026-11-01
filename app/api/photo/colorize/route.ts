@@ -1,4 +1,4 @@
-// Create an async colorize / restore job (Phase 1, P0-fixed).
+// Create an async colorize / restore job (Phase 1, P0-fixed, free-unlimited).
 //
 // Modes (exactly 3, sent as `mode` in the form data):
 //   enhance            -> handled by /api/enhance, never here.
@@ -9,8 +9,11 @@
 // (GET /api/photo/jobs/[id]) because image jobs can outlast the
 // 60s Vercel function limit. This route only validates, prepares the
 // AI-sized input, starts the FIRST prediction, and stores the job.
-// Credits: Enhance-style accounting — guests consume at creation,
-// signed-in users at successful completion (AiUsageLog).
+// Credits (FREE + UNLIMITED model): free jobs (Space, browser, Sharp)
+// cost 0 and are never budget-checked; only a Premium paid-GPU start
+// consumes the Premium GPU budget, and over budget Premium falls back
+// to the free Space instead of blocking. Free users never reach paid
+// GPU (see lib/ai/tiers.ts).
 //
 // P0 rules enforced here:
 // - AI input is resized to max 1536px BEFORE any model call (speed).
@@ -31,15 +34,18 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import sharp from "sharp";
 import { detectImageKind } from "@/lib/file-validate";
 import { checkMinuteRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getSessionSafe } from "@/lib/auth";
 import { getSetting, getSettings, isIpBlocked } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
-import { checkGuestPhotoCredits, checkPhotoCredits, PHOTO_CREDIT_COST, type PhotoMode } from "@/lib/ai/credits";
+import { checkPhotoCredits, PHOTO_CREDIT_COST, type PhotoMode } from "@/lib/ai/credits";
 import { analyzeImageLocal } from "@/lib/ai/image-analysis";
+import { shouldRefuseColorize } from "@/lib/ai/grayscale-gate";
 import { prepareAiInput } from "@/lib/ai/colorize";
+import { sharpRestore } from "@/lib/ai/adapters/sharp-local";
 import { routeColorizeStart, routeRestoreStart, routeUpscaleStart, type AiError } from "@/lib/ai/router";
 import { colorizeModel } from "@/lib/ai/adapters/replicate";
 import { colorizeAttemptOrder } from "@/lib/ai/tiers";
@@ -59,10 +65,14 @@ const Body = z.object({
   outputQuality: z.coerce.number().int().min(10).max(100).default(85),
   scale: z.coerce.number().int().pipe(z.union([z.literal(2), z.literal(4)])).default(2),
   faceEnhance: z.enum(["true", "false"]).default("false"),
+  // User override for the grayscale gate: faded/sepia photos are often
+  // measured as "colour" but are exactly what users want colorized.
+  // When true, the server never refuses a colorize job on gate grounds.
+  colorizeAnyway: z.enum(["true", "false"]).default("false"),
 });
 
-const GENERIC_UNAVAILABLE = "Colorize is unavailable right now. Please try again later, or use Enhance only.";
-const GENERIC_FAILED = "Colorize is unavailable right now. Please try again later, or use Enhance only.";
+const GENERIC_UNAVAILABLE = "Colorize is unavailable on the server right now. Try the free browser colorize instead, or use Enhance only.";
+const GENERIC_FAILED = "Colorize is unavailable on the server right now. Try the free browser colorize instead, or use Enhance only.";
 
 export async function POST(req: Request) {
   if ((await getSetting("enhanceEnabled")) !== "true") {
@@ -102,6 +112,7 @@ export async function POST(req: Request) {
     outputQuality: form.get("outputQuality") ?? "85",
     scale: form.get("scale") ?? "2",
     faceEnhance: form.get("faceEnhance") ?? "false",
+    colorizeAnyway: form.get("colorizeAnyway") ?? "false",
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid options. Please check the form and try again." }, { status: 400 });
@@ -118,28 +129,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Face enhance is a Premium feature. Turn it off, or upgrade to Premium." }, { status: 400 });
   }
 
-  // Credit check (cost shown in the UI before the click).
-  let rl = { remaining: 0, budget: 0 };
-  if (userId) {
-    const c = await checkPhotoCredits({ userId, plan: userPlan, mode });
-    rl = { remaining: c.remaining, budget: c.budget };
-    if (!c.ok) {
-      return NextResponse.json(
-        { error: `Daily photo credit limit reached (${c.budget} credits per day on your plan). Please try again tomorrow.` },
-        { status: 429, headers: rateLimitHeaders(0, c.budget) }
-      );
-    }
-  } else {
-    const c = await checkGuestPhotoCredits(req, mode);
-    rl = { remaining: c.remaining, budget: c.budget };
-    if (!c.ok) {
-      return NextResponse.json(
-        { error: `Daily free limit reached (${c.budget} photo credits per day). Please try again tomorrow, or upgrade to Premium for 100 per day.` },
-        { status: 429, headers: rateLimitHeaders(c.remaining, c.budget) }
-      );
-    }
-  }
-
+  // NO upfront credit check anymore (FREE + UNLIMITED model): free
+  // jobs never consume anything, and Premium GPU jobs are only
+  // budget-checked when a paid-GPU tier is actually about to start
+  // (below). The only universal gate is the 5/min per-IP limiter above.
   const file = form.get("image");
   if (!file || typeof file === "string") {
     return NextResponse.json({ error: "Please upload a JPG, PNG or WebP image under 10 MB." }, { status: 400 });
@@ -168,6 +161,9 @@ export async function POST(req: Request) {
   }
 
   // Server-measured grayscale — the UI warns, the server decides.
+  // The gate applies to COLORIZE only: a colour photo in Restore mode
+  // is a legitimate job (repair + upscale, no colorize), so it must
+  // reach the restore branches below instead of being refused here.
   let local;
   try {
     local = await analyzeImageLocal(aiInput.buffer);
@@ -175,10 +171,10 @@ export async function POST(req: Request) {
     console.error("photo/colorize: image analysis failed", err);
     return NextResponse.json({ error: "Could not read that image. Please try another file." }, { status: 400 });
   }
-  if (opts.mode === "colorize" && !local.isGrayscale) {
+  if (mode === "colorize" && shouldRefuseColorize({ isGrayscale: local.isGrayscale, colorizeAnyway: opts.colorizeAnyway === "true" })) {
     return NextResponse.json(
       {
-        error: "This looks like a colour photo already, so there is nothing to colorize. Choose Enhance only instead.",
+        error: "This looks like a colour photo already, so there is nothing to colorize. Choose Enhance only instead, or use “Colorize anyway” if it is a faded or sepia old photo.",
         suggestMode: "enhance",
       },
       { status: 400 }
@@ -187,30 +183,100 @@ export async function POST(req: Request) {
   // Restore colorizes grayscale photos and skips colorize for colour ones.
   const willColorize = opts.mode === "colorize" || local.isGrayscale;
 
+  // FREE colour-restore has no free server step: model repair is a
+  // paid-GPU feature and free users are never routed to paid GPU.
+  // Instead of a dead end, the UI offers free Enhance (sharpen +
+  // upscale) for these photos — the honest free equivalent.
+  if (userPlan === "FREE" && opts.mode === "restore" && !willColorize) {
+    return NextResponse.json(
+      {
+        error: "This looks like a colour photo, so there is nothing to colorize and model face/scratch repair is not on the free route. Free Enhance can sharpen and upscale it instead.",
+        freeAlternative: "enhance",
+      },
+      { status: 503 }
+    );
+  }
+
   if (!prisma) {
-    return NextResponse.json({ error: "Colorize is unavailable right now. Please try Enhance only for now." }, { status: 503 });
+    // No database: async colorize jobs have nowhere to live, so the
+    // server path is honestly unavailable — but never a dead end:
+    // the UI offers the free browser path (or free Enhance for colour
+    // restore, which has nothing to colorize).
+    return NextResponse.json(
+      {
+        error: GENERIC_UNAVAILABLE,
+        freeAlternative: mode === "restore" && !willColorize ? "enhance" : "browser",
+      },
+      { status: 503 }
+    );
   }
 
   // Start the first prediction, then store the job.
-  // Restore mode: the restore prediction runs FIRST (stage "restoring");
-  // its output becomes the colorize input when the job is polled.
+  //
+  // TIER-AWARE CREDITS (FREE + UNLIMITED model): credits are decided by
+  // the tier that ACTUALLY starts, not upfront. Free jobs (Space,
+  // browser, Sharp) cost 0 and are never budget-checked. Only a
+  // Premium paid-GPU start consumes the GPU budget — and when that
+  // budget is reached, Premium falls back to the free Space instead
+  // of blocking. Free users never reach the paid-GPU branch at all:
+  // colorizeAttemptOrder("FREE") is ["space"] by construction.
+  //
+  // Restore mode: the restore prediction runs FIRST (stage
+  // "restoring") for Premium only; its output becomes the colorize
+  // input when the job is polled. For FREE restore, the model repair
+  // step is skipped (it is paid-GPU-only) and a local cleanup
+  // (denoise + sharpen, honestly NOT face/scratch inpainting) runs
+  // instead, with a notice saying exactly that — never a fake restore.
   // When restore is unconfigured or its start fails, the job proceeds
-  // to colorize/upscale with an honest notice — never a fake restore.
+  // to colorize/upscale with an honest notice.
   let predictionId = "";
   let firstStage = "";
   let tierProvider: string | null = null;
   let tierModel: string | null = null;
+  let tierUsed: "replicate" | "space" | null = null;
   let restoreNotice: string | null = null;
+  let colorizeInput = aiInput.buffer;
+  // Premium GPU budget, checked lazily only when a paid-GPU tier is
+  // about to start (never for free paths, never for guests).
+  const premiumGpuBudgetOk = async (): Promise<boolean> => {
+    if (userPlan !== "PREMIUM" || !userId) return false;
+    try {
+      return (await checkPhotoCredits({ userId, plan: userPlan, mode })).ok;
+    } catch {
+      return false;
+    }
+  };
   try {
     if (opts.mode === "restore") {
-      try {
-        const started = await routeRestoreStart({ image: aiInput.buffer, kind: "jpeg" });
-        predictionId = started.predictionId;
-        tierProvider = "replicate";
-        tierModel = null;
-        firstStage = "restoring";
-      } catch (err) {
-        console.error("photo/colorize: restore start failed, continuing to colorize", err);
+      if (userPlan === "PREMIUM" && (await premiumGpuBudgetOk())) {
+        try {
+          const started = await routeRestoreStart({ image: aiInput.buffer, kind: "jpeg" });
+          predictionId = started.predictionId;
+          tierProvider = "replicate";
+          tierModel = null;
+          tierUsed = "replicate";
+          firstStage = "restoring";
+        } catch (err) {
+          console.error("photo/colorize: restore start failed, continuing to colorize", err);
+          restoreNotice = willColorize
+            ? "Face and scratch restoration was unavailable for this photo, so it was colorized and upscaled instead."
+            : "Face and scratch restoration was unavailable for this photo, so it was upscaled instead.";
+        }
+      } else if (userPlan === "FREE" && willColorize) {
+        // Free restore: local cleanup only (denoise + sharpen). This
+        // does NOT inpaint scratches or restore faces — the notice says
+        // so, and the result's Details line repeats it.
+        try {
+          const cleaned = await sharpRestore(aiInput.buffer);
+          colorizeInput = await sharp(cleaned).jpeg({ quality: 92 }).toBuffer();
+          restoreNotice =
+            "Free restore cleaned up this photo (denoise + sharpen) before colorizing. Model face and scratch repair is a Premium server feature and was not applied.";
+        } catch (err) {
+          console.error("photo/colorize: free restore cleanup failed, continuing to colorize", err);
+          restoreNotice =
+            "Model face and scratch repair is a Premium server feature and was not applied on this free job, so it was colorized and upscaled instead.";
+        }
+      } else if (userPlan === "PREMIUM") {
         restoreNotice = willColorize
           ? "Face and scratch restoration was unavailable for this photo, so it was colorized and upscaled instead."
           : "Face and scratch restoration was unavailable for this photo, so it was upscaled instead.";
@@ -220,11 +286,11 @@ export async function POST(req: Request) {
       if (willColorize) {
         let lastErr: unknown = null;
         let sawNotConfigured = false;
-        // Server tiers in plan order (Free: Space first, then image
-        // pool; Premium: image pool first, then Space). A failed tier
-        // falls through to the next; no dead job is stored if all fail.
-        // (Tier A, browser colorize, runs client-side before this route
-        // for Free users and after it for Premium users; see tiers.ts.)
+        // Server tiers in plan order (Free: Space only; Premium:
+        // paid GPU first, then Space). A failed tier falls through
+        // to the next; no dead job is stored if all fail.
+        // (Tier A, browser colorize, runs client-side: first for Free
+        // users, as a fallback for Premium users; see tiers.ts.)
         const allSettings = await getSettings();
         const hfToggleOff = allSettings["ai.provider.huggingface"] === "false";
         for (const tier of colorizeAttemptOrder(userPlan)) {
@@ -234,15 +300,23 @@ export async function POST(req: Request) {
                 sawNotConfigured = true;
                 continue;
               }
-              const started = await startSpaceColorize(aiInput.buffer, "image/jpeg");
+              const started = await startSpaceColorize(colorizeInput, "image/jpeg");
               predictionId = started.eventId;
               tierProvider = "huggingface";
               tierModel = spaceId();
+              tierUsed = "space";
             } else {
-              const started = await routeColorizeStart({ image: aiInput.buffer, kind: "jpeg", userId });
+              // Paid GPU: Premium only, and only within its budget.
+              // Over budget, fall through to the free Space — never block.
+              if (!(await premiumGpuBudgetOk())) {
+                sawNotConfigured = true;
+                continue;
+              }
+              const started = await routeColorizeStart({ image: colorizeInput, kind: "jpeg", userId });
               predictionId = started.predictionId;
               tierProvider = "replicate";
               tierModel = colorizeModel();
+              tierUsed = "replicate";
             }
             firstStage = "colorizing";
             break;
@@ -254,21 +328,24 @@ export async function POST(req: Request) {
         }
         if (!tierProvider) {
           if (sawNotConfigured) {
-            return NextResponse.json({ error: GENERIC_UNAVAILABLE }, { status: 503 });
+            return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "browser" }, { status: 503 });
           }
           console.error("photo/colorize: all colorize tiers failed", lastErr);
           throw lastErr ?? new Error("No colorize tier started.");
         }
       } else {
+        // Colour restore (Premium only — FREE colour-restore returned
+        // earlier with a free Enhance alternative): GPU upscale.
         const started = await routeUpscaleStart({ image: aiInput.buffer, kind: "jpeg", scale: opts.scale as 2 | 4, faceEnhance });
         predictionId = started.predictionId;
+        tierUsed = "replicate";
         firstStage = "upscaling";
       }
     }
   } catch (err) {
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {
-      return NextResponse.json({ error: GENERIC_UNAVAILABLE }, { status: 503 });
+      return NextResponse.json({ error: GENERIC_UNAVAILABLE, freeAlternative: "browser" }, { status: 503 });
     }
     if (e?.code === "AI_BUDGET_REACHED") {
       return NextResponse.json({ error: "The daily AI budget is reached. Please try again tomorrow." }, { status: 503 });
@@ -277,10 +354,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "The image service is busy right now. Please wait a minute and try again." }, { status: 429 });
     }
     console.error("photo/colorize: job start failed", err);
-    return NextResponse.json({ error: GENERIC_FAILED }, { status: 502 });
+    return NextResponse.json({ error: GENERIC_FAILED, freeAlternative: "browser" }, { status: 502 });
   }
 
-  const credits = PHOTO_CREDIT_COST[mode];
+  // Credits follow the tier that actually started: paid GPU charges
+  // the Premium GPU budget; every free tier costs 0, always.
+  const credits = tierUsed === "replicate" ? PHOTO_CREDIT_COST[mode] : 0;
   let job;
   try {
     job = await prisma.photoJob.create({
@@ -305,7 +384,7 @@ export async function POST(req: Request) {
         upscalePredId: firstStage === "upscaling" ? predictionId : null,
         provider: tierProvider,
         model: tierModel,
-        inputData: aiInput.buffer.toString("base64"),
+        inputData: colorizeInput.toString("base64"),
         inputMime: "image/jpeg",
         credits,
         costEstimate: 0,
@@ -313,9 +392,16 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    // Table missing (schema not pushed yet) or any DB error: honest 503.
+    // Table missing (schema not pushed yet) or any DB error: honest 503,
+    // with the free alternative so the UI never shows a dead end.
     console.error("photo/colorize: job store failed", err);
-    return NextResponse.json({ error: "Colorize is unavailable right now. Please try Enhance only for now." }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: GENERIC_UNAVAILABLE,
+        freeAlternative: mode === "restore" && !willColorize ? "enhance" : "browser",
+      },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json(
@@ -327,10 +413,12 @@ export async function POST(req: Request) {
       willColorize,
       needsUpscale: true,
       credits,
-      remaining: rl.remaining,
-      budget: rl.budget,
+      // Free jobs are unlimited: no remaining/budget numbers exist for
+      // them. Premium GPU jobs still report their budget via the job
+      // poll, not here — the UI never shows credit numbers on free paths.
+      freeUnlimited: tierUsed !== "replicate",
       notice: restoreNotice,
     },
-    { headers: rateLimitHeaders(rl.remaining, rl.budget) }
+    { headers: rateLimitHeaders(minute.remaining, minute.limit) }
   );
 }

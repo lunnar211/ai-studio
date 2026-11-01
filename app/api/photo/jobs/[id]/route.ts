@@ -149,8 +149,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // not fail the job: return the current state and let the client retry.
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {
-      await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Please try again later, or use Enhance only.");
-      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Please try again later, or use Enhance only." }));
+      await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
     }
     console.error("photo/jobs: transient poll error", err);
     return NextResponse.json(publicState(job));
@@ -189,8 +189,8 @@ async function advanceRestoring(job: JobRow, plan: "FREE" | "PREMIUM") {
   }
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Please try again later, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Please try again later, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
   }
   let pred;
   try {
@@ -312,8 +312,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       polled = await pollSpaceColorize(job.predictionId);
     } catch (err) {
       if (err instanceof SpaceError) {
-        await failJob(job, "SPACE_NOT_CONFIGURED", "Colorize is unavailable right now. Please try again later, or use Enhance only.");
-        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Please try again later, or use Enhance only." }));
+        await failJob(job, "SPACE_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
       }
       // Transient poll error: return current state, client retries.
       return NextResponse.json(publicState(job));
@@ -334,8 +334,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
   // Tier C: image-pool colorize.
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Please try again later, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Please try again later, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
   }
   let pred;
   try {
@@ -396,6 +396,21 @@ async function afterColorizeSuccess(
     era: job.era as "" | "1900s-1940s" | "1950s-1970s" | "1980s+",
     intensityPct: job.intensity,
   });
+  // FREE jobs never touch paid GPU for the upscale step either: the
+  // free route upscales with Sharp (standard quality, honestly
+  // labelled) instead of starting a paid-GPU prediction.
+  if (plan === "FREE") {
+    const sharpOut = await sharpEnhance(merged.buffer, 2048);
+    return await finalize(job, sharpOut, {
+      plan,
+      engine: "ai-colorize+standard-upscale",
+      provider: "sharp",
+      model: "sharp-lanczos3",
+      capability: "image-colorize",
+      extraCost: opts.extraCost,
+      note: "Free route: the upscale step ran at standard quality instead of the paid-GPU upscale. The colorize step still used AI.",
+    });
+  }
   let started;
   try {
     started = await routeUpscaleStart({
@@ -437,14 +452,21 @@ async function afterColorizeSuccess(
 }
 
 async function advanceUpscaling(job: JobRow, plan: "FREE" | "PREMIUM") {
+  // Free jobs never hold a paid-GPU upscale prediction: finish them
+  // with the Sharp fallback directly instead of polling a GPU job
+  // that must not exist for free users.
+  if (job.credits === 0) {
+    return await finalizeWithSharpFallback(job, plan,
+      "Free route: the upscale step ran at standard quality. The colorize step (if any) still used AI.");
+  }
   if (!job.upscalePredId) {
     await failJob(job, "NO_PREDICTION", "That job lost its reference. Please run it again.");
     return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "That job lost its reference. Please run it again." }));
   }
   const provider = getImageProvider();
   if (!provider) {
-    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Please try again later, or use Enhance only.");
-    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Please try again later, or use Enhance only." }));
+    await failJob(job, "AI_NOT_CONFIGURED", "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now. Try the free browser colorize instead, or use Enhance only." }));
   }
   let pred;
   try {
@@ -482,6 +504,12 @@ async function advanceUpscaling(job: JobRow, plan: "FREE" | "PREMIUM") {
   // colorized job that means re-fetching the colorize output and
   // re-merging (deterministic); for restore-on-colour it is the
   // original upload. The HD step is labelled Standard, never AI.
+  return await finalizeWithSharpFallback(job, plan,
+    "The AI upscale step failed, so the upscale was done at standard quality instead. The colorize step (if any) still used AI.");
+}
+
+/** Shared Sharp-upscale finish for free jobs and GPU-upscale failures. */
+async function finalizeWithSharpFallback(job: JobRow, plan: "FREE" | "PREMIUM", note: string) {
   try {
     const fallbackInput = await buildFallbackInput(job);
     const sharpOut = await sharpEnhance(fallbackInput);
@@ -493,7 +521,7 @@ async function advanceUpscaling(job: JobRow, plan: "FREE" | "PREMIUM") {
       model: "sharp-lanczos3",
       capability: colorized ? "image-colorize" : "image-upscale",
       extraCost: 0,
-      note: "The AI upscale step failed, so the upscale was done at standard quality instead. The colorize step (if any) still used AI.",
+      note,
     });
   } catch (err) {
     console.error("photo/jobs: upscale fallback failed", err);
