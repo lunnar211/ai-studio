@@ -16,6 +16,7 @@ import { LIMITS } from "@/lib/limits";
 import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { photoCreditsUsedToday } from "@/lib/ai/credits";
+import { spaceConfigured } from "@/lib/ai/gradio";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,10 @@ async function photoJobTableReady(): Promise<boolean> {
 export async function GET() {
   const settings = await getSettings();
   const replicateOn = providerEnabled("replicate", settings);
+  // Space kill-switch: the admin toggle disables it instantly without
+  // a redeploy (the registry's HF Inference adapter is separate and
+  // stays disabled).
+  const spaceOn = spaceConfigured() && settings["ai.provider.huggingface"] !== "false";
   const tableReady = await photoJobTableReady();
   const session = await getSessionSafe();
   const userId = (session?.user as unknown as { id?: string; plan?: string } | undefined)?.id ?? null;
@@ -47,12 +52,14 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    colorize: replicateOn && tableReady,
-    colorizeBlockedReason: !replicateOn
-      ? "The image model is not configured."
+    colorize: (replicateOn || spaceOn) && tableReady,
+    colorizeBlockedReason: !(replicateOn || spaceOn)
+      ? "Neither the image model nor your private Space is configured."
       : !tableReady
         ? "Photo jobs need a one-time database setup that has not run yet."
         : null,
+    spaceConfigured: spaceOn,
+    browserColorize: true,
     upscaleAi: replicateOn,
     upscaleLocal: true,
     visionAnalysis: providerEnabled("gemini", settings) || providerEnabled("nvidia", settings),

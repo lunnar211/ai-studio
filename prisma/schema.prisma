@@ -309,6 +309,7 @@ model PhotoJob {
   predictionId   String?
   upscalePredId  String?
   inputData      String?  // base64 normalized upload; cleared at terminal state
+  preUpscaleData String?  // base64 merged colorized image before the upscale step; lets the Sharp fallback skip re-fetching the colorize output
   inputMime      String   @default("image/jpeg")
   resultData     String?  // base64 finished image; cleared after 2h / on expiry
   resultMime     String?

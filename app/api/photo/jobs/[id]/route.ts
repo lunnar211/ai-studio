@@ -2,8 +2,10 @@
 //
 // Serverless functions stop at 60s, so the client polls every few
 // seconds and THIS endpoint advances the job one step per call:
-//   COLORIZING: check the DDColor prediction; on success LAB-merge
-//     (original L + model a/b) and either finalize or start upscale.
+//   COLORIZING: check the colorize tier that started the job — the
+//     owner's HF Space (Tier B, polled by Gradio event id) or
+//     Replicate DDColor (Tier C) — then LAB-merge (original L +
+//     model a/b) and either finalize or start upscale.
 //   UPSCALING: check the Real-ESRGAN prediction; on success finalize.
 //     On failure, fall back to the Sharp pipeline for the upscale step
 //     only (labelled honestly — the colorize step is never faked).
@@ -32,6 +34,8 @@ import {
 import { sharpEnhance } from "@/lib/ai/adapters/sharp-local";
 import { edgeCapForPlan, encodeResult, mergeColorized } from "@/lib/ai/colorize";
 import { routeUpscaleStart, type AiError } from "@/lib/ai/router";
+import { pollSpaceColorize, SpaceError } from "@/lib/ai/gradio";
+import type { AiProviderId } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -160,6 +164,33 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
     await failJob(job, "NO_PREDICTION", "That job lost its image-model reference. Please run it again.");
     return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "That job lost its image-model reference. Please run it again." }));
   }
+  // Tier B: the owner's Hugging Face Space, polled by event id.
+  if (job.provider === "huggingface") {
+    let polled;
+    try {
+      polled = await pollSpaceColorize(job.predictionId);
+    } catch (err) {
+      if (err instanceof SpaceError) {
+        await failJob(job, "SPACE_NOT_CONFIGURED", "Colorize is unavailable right now: the private Space is not configured.");
+        return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now: the private Space is not configured." }));
+      }
+      // Transient poll error: return current state, client retries.
+      return NextResponse.json(publicState(job));
+    }
+    if (polled.status === "processing") {
+      return NextResponse.json(publicState(job));
+    }
+    if (polled.status === "failed") {
+      await failJob(job, "COLORIZE_FAILED", "Colorize is unavailable right now: the image model could not colorize that photo. Your original is unchanged — please try again later, or use Enhance only.");
+      return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now: the image model could not colorize that photo. Your original is unchanged — please try again later, or use Enhance only." }));
+    }
+    return await afterColorizeSuccess(job, polled.image, plan, {
+      provider: "huggingface",
+      model: job.model ?? "hf-space",
+      extraCost: 0,
+    });
+  }
+  // Tier C: Replicate DDColor.
   const pred: ReplicatePrediction = await replicateGet(job.predictionId);
   if (pred.status === "starting" || pred.status === "processing") {
     return NextResponse.json(publicState(job));
@@ -169,12 +200,35 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
     return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize is unavailable right now: the image model could not colorize that photo. Your original is unchanged — please try again later, or use Enhance only." }));
   }
   const url = replicateOutputUrl(pred);
-  if (!url || !job.inputData) {
+  if (!url) {
     await failJob(job, "COLORIZE_OUTPUT_MISSING", "Colorize finished but its result could not be read. Please run it again.");
     return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize finished but its result could not be read. Please run it again." }));
   }
   const modelOut = await replicateFetchOutput(url);
   const colorizeCost = replicateCostEstimate(pred);
+  return await afterColorizeSuccess(job, modelOut, plan, {
+    provider: "replicate",
+    model: REPLICATE_COLORIZE_MODEL,
+    extraCost: colorizeCost,
+  });
+}
+
+/**
+ * Shared post-colorize step for every tier: LAB-merge (original L +
+ * model a/b), then finalize, or start the upscale step. The merged
+ * image is stored (preUpscaleData) so the Sharp upscale fallback
+ * never has to re-fetch the colorize output.
+ */
+async function afterColorizeSuccess(
+  job: JobRow,
+  modelOut: Buffer,
+  plan: "FREE" | "PREMIUM",
+  opts: { provider: string; model: string; extraCost: number }
+) {
+  if (!job.inputData) {
+    await failJob(job, "COLORIZE_OUTPUT_MISSING", "Colorize finished but its result could not be read. Please run it again.");
+    return NextResponse.json(publicState({ ...job, status: "FAILED" }, { error: "Colorize finished but its result could not be read. Please run it again." }));
+  }
   const original = Buffer.from(job.inputData, "base64");
   const merged = await mergeColorized(original, modelOut, {
     style: job.style as "natural" | "vivid" | "warm" | "cool",
@@ -186,15 +240,15 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
     return await finalize(job, merged.buffer, {
       plan,
       engine: "ai-colorize",
-      provider: "replicate",
-      model: REPLICATE_COLORIZE_MODEL,
+      provider: opts.provider,
+      model: opts.model,
       capability: "image-colorize",
-      extraCost: colorizeCost,
+      extraCost: opts.extraCost,
     });
   }
   // Start the upscale step with the merged image as its input. The
   // original input is KEPT until a terminal state, so an upscale
-  // failure can still re-merge and Sharp-fallback honestly.
+  // failure can still Sharp-fallback honestly.
   const started = await routeUpscaleStart({
     image: merged.buffer,
     kind: "jpeg",
@@ -209,7 +263,8 @@ async function advanceColorizing(job: JobRow, plan: "FREE" | "PREMIUM") {
       stage: "upscaling",
       upscalePredId: started.predictionId,
       colorized: true,
-      costEstimate: (job.costEstimate ?? 0) + colorizeCost,
+      preUpscaleData: merged.buffer.toString("base64"),
+      costEstimate: (job.costEstimate ?? 0) + opts.extraCost,
     },
   });
   return NextResponse.json(publicState(updated));
@@ -265,10 +320,23 @@ async function advanceUpscaling(job: JobRow, plan: "FREE" | "PREMIUM") {
 
 /** Rebuild the pre-upscale image for the Sharp fallback path. */
 async function buildFallbackInput(job: JobRow): Promise<Buffer> {
+  if (job.preUpscaleData) return Buffer.from(job.preUpscaleData, "base64");
   if (!job.inputData) throw new Error("no input");
   const original = Buffer.from(job.inputData, "base64");
   if (!job.colorized && job.mode !== "colorize-hd") return original;
   if (!job.predictionId) throw new Error("no colorize prediction");
+  // Pre-preUpscaleData jobs (created before the field existed): the
+  // Space tier re-polls its event; the Replicate tier re-fetches.
+  if (job.provider === "huggingface") {
+    const polled = await pollSpaceColorize(job.predictionId);
+    if (polled.status !== "succeeded") throw new Error("no colorize output");
+    const merged = await mergeColorized(original, polled.image, {
+      style: job.style as "natural" | "vivid" | "warm" | "cool",
+      era: job.era as "" | "1900s-1940s" | "1950s-1970s" | "1980s+",
+      intensityPct: job.intensity,
+    });
+    return merged.buffer;
+  }
   const pred = await replicateGet(job.predictionId);
   const url = replicateOutputUrl(pred);
   if (!url) throw new Error("no colorize output");
@@ -319,7 +387,7 @@ async function finalize(
     },
   });
   await logAiUsage({
-    provider: opts.provider as "replicate" | "sharp",
+    provider: opts.provider as AiProviderId,
     model: opts.model,
     capability: opts.capability,
     latencyMs: Date.now() - job.createdAt.getTime(),

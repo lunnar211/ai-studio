@@ -19,12 +19,15 @@ import { detectImageKind } from "@/lib/file-validate";
 import { getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getSessionSafe } from "@/lib/auth";
-import { getSetting, isIpBlocked } from "@/lib/settings";
+import { getSetting, getSettings, isIpBlocked } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
 import { checkGuestPhotoCredits, checkPhotoCredits, PHOTO_CREDIT_COST, type PhotoMode } from "@/lib/ai/credits";
 import { analyzeImageLocal } from "@/lib/ai/image-analysis";
 import { normalizeUpload } from "@/lib/ai/colorize";
 import { routeColorizeStart, routeUpscaleStart, type AiError } from "@/lib/ai/router";
+import { REPLICATE_COLORIZE_MODEL } from "@/lib/ai/adapters/replicate";
+import { colorizeAttemptOrder } from "@/lib/ai/tiers";
+import { spaceConfigured, spaceId, startSpaceColorize, SpaceError } from "@/lib/ai/gradio";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -162,16 +165,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Photo jobs need a database setup that is not finished yet. Please try Enhance only for now." }, { status: 503 });
   }
 
-  // Start the first prediction, then store the job. If Replicate is
-  // down/unconfigured/capped, the router throws an honest error and
-  // no dead job is stored.
-  let predictionId: string;
-  let firstStage: string;
+  // Start the first prediction, then store the job. Colorize tries
+  // the server tiers in plan order (Free: Space first, then
+  // Replicate; Premium: Replicate first, then Space) — a failed tier
+  // falls through to the next, and no dead job is stored if all fail.
+  // (Tier A, browser colorize, runs client-side before this route
+  // for Free users and after it for Premium users; see tiers.ts.)
+  let predictionId = "";
+  let firstStage = "";
+  let tierProvider: string | null = null;
+  let tierModel: string | null = null;
   try {
     if (willColorize) {
-      const started = await routeColorizeStart({ image: normalized.buffer, kind: "jpeg", userId });
-      predictionId = started.predictionId;
-      firstStage = "colorizing";
+      let lastErr: unknown = null;
+      let sawNotConfigured = false;
+      let attempted = 0;
+      // Instant kill-switch for the Space (admin toggle, no redeploy).
+      // The registry's HF Inference adapter stays separate/disabled.
+      const allSettings = await getSettings();
+      const hfToggleOff = allSettings["ai.provider.huggingface"] === "false";
+      for (const tier of colorizeAttemptOrder(userPlan)) {
+        attempted++;
+        try {
+          if (tier === "space") {
+            if (!spaceConfigured() || hfToggleOff) {
+              sawNotConfigured = true;
+              continue;
+            }
+            const started = await startSpaceColorize(normalized.buffer, "image/jpeg");
+            predictionId = started.eventId;
+            tierProvider = "huggingface";
+            tierModel = spaceId();
+          } else {
+            const started = await routeColorizeStart({ image: normalized.buffer, kind: "jpeg", userId });
+            predictionId = started.predictionId;
+            tierProvider = "replicate";
+            tierModel = REPLICATE_COLORIZE_MODEL;
+          }
+          firstStage = "colorizing";
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (err instanceof SpaceError && err.code === "SPACE_NOT_CONFIGURED") sawNotConfigured = true;
+          if ((err as AiError)?.code === "AI_NOT_CONFIGURED") sawNotConfigured = true;
+        }
+      }
+      if (!tierProvider) {
+        if (sawNotConfigured && attempted > 0) {
+          return NextResponse.json({ error: "Colorize is unavailable right now: the image model is not configured. Please try Enhance only, or try again later." }, { status: 503 });
+        }
+        throw lastErr ?? new Error("No colorize tier started.");
+      }
     } else {
       const started = await routeUpscaleStart({ image: normalized.buffer, kind: "jpeg", scale: opts.scale as 2 | 4, faceEnhance });
       predictionId = started.predictionId;
@@ -210,6 +254,8 @@ export async function POST(req: Request) {
         colorized: false,
         predictionId: willColorize ? predictionId : null,
         upscalePredId: willColorize ? null : predictionId,
+        provider: tierProvider,
+        model: tierModel,
         inputData: normalized.buffer.toString("base64"),
         inputMime: "image/jpeg",
         credits,
