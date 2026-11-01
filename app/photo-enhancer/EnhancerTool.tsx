@@ -4,7 +4,7 @@ import { Download, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/field";
 import { TurnstileWidget } from "@/components/site/TurnstileWidget";
-import { COLOR_ERAS, COLOR_STYLES } from "@/lib/ai/colorize";
+import { COLOR_ERAS, COLOR_STYLES } from "@/lib/ai/color-constants";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const POLL_MS = 2500;
@@ -160,14 +160,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
 
   // Resume: a job id in the URL (?job=) or localStorage re-attaches
   // polling, so leaving the page mid-job does not lose the result.
+  // State is set only in the poll's async callback (never synchronously
+  // in this effect), so the first poll response populates the UI.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get("job");
-    const fromStorage = window.localStorage.getItem("photo-job-id");
-    const jobId = fromUrl || fromStorage;
-    if (jobId && !job) {
-      setJob({ jobId, status: "QUEUED", stage: "queued", mode: "colorize", credits: 2 });
-      setJobStage("queued");
+    const jobId = params.get("job") || window.localStorage.getItem("photo-job-id");
+    if (jobId) {
       pollJob(jobId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
