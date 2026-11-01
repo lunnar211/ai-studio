@@ -22,14 +22,15 @@ type Caps = {
   colorizeBlockedReason: string | null;
   serverColorize?: boolean;
   browserColorize?: boolean;
+  // FREE + UNLIMITED model: free paths carry no credit numbers at all.
+  // The only numbers that exist are Premium GPU internals, which the
+  // UI never displays on free paths.
+  freeUnlimited?: boolean;
+  premiumSpeed?: boolean;
   upscaleAi: boolean;
-  photoCreditsFree: number;
-  photoCreditsPremium: number;
-  photoCreditCost: Record<Mode, number>;
   signedIn: boolean;
   plan: "FREE" | "PREMIUM" | null;
-  remainingCredits: number | null;
-  creditBudget: number | null;
+  premiumGpuRemaining: number | null;
 } | null;
 
 type JobState = {
@@ -66,7 +67,8 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 /** Local grayscale check in the browser (canvas sampling, no upload).
- *  A warning/suggestion only — the server measures again and enforces. */
+ *  A hint only — never a block: the user may always override it with
+ *  "Colorize anyway", and the server honors that override too. */
 async function detectGrayscaleLocal(file: File): Promise<"grayscale" | "color" | null> {
   try {
     const url = URL.createObjectURL(file);
@@ -135,6 +137,13 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   const [caps, setCaps] = useState<Caps>(null);
   const [grayKind, setGrayKind] = useState<"grayscale" | "color" | null>(null);
   const [grayChecking, setGrayChecking] = useState(false);
+  // "Colorize anyway": the user's explicit override for the grayscale
+  // gate. Faded/sepia old photos are often measured as "colour" but
+  // are exactly what users want colorized — the override always wins.
+  const [colorizeAnyway, setColorizeAnyway] = useState(false);
+  // Free alternative offered by the server when a server job cannot
+  // start (browser colorize, or free Enhance for colour restore).
+  const [freeAlternative, setFreeAlternative] = useState<"browser" | "enhance" | null>(null);
   // Advanced (colorize) options.
   const [style, setStyle] = useState("natural");
   const [era, setEra] = useState("");
@@ -157,9 +166,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   const jobCancelled = useRef(false);
 
   const isPremium = caps?.plan === "PREMIUM";
-  const cost = caps?.photoCreditCost?.[mode] ?? (mode === "enhance" ? 1 : mode === "colorize" ? 2 : 3);
   const colorizeAvailable = caps?.colorize ?? true;
-  const colorizeBlockedReason = caps?.colorizeBlockedReason ?? null;
 
   useEffect(() => {
     fetch("/api/photo/capabilities")
@@ -238,6 +245,10 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       }
       if (st.status === "FAILED" || st.status === "CANCELED") {
         setError(st.error ?? "That job failed. Your original is unchanged — please try again.");
+        // No dead end: a failed server job still leaves the free
+        // browser path open for colorize (and for B&W restore, where
+        // the browser can colorize even though it cannot repair).
+        if ((st.mode === "colorize" || (st.mode === "restore" && grayKind === "grayscale")) && browserSupported) setOfferBrowser(true);
         setJobStage(null);
         setLoading(false);
         window.localStorage.removeItem("photo-job-id");
@@ -257,6 +268,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setFreeAlternative(null);
+    setColorizeAnyway(false);
     setBrowserProgress("");
     setSuggestEnhance(false);
     setAfterUrl("");
@@ -334,6 +347,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setFreeAlternative(null);
     setBrowserProgress("");
     setSuggestEnhance(false);
     setAfterUrl("");
@@ -343,6 +357,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     const form = new FormData();
     form.append("image", file);
     form.append("mode", mode);
+    form.append("colorizeAnyway", colorizeAnyway ? "true" : "false");
     form.append("style", style);
     form.append("era", era);
     form.append("intensity", String(intensity));
@@ -353,22 +368,29 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     if (token) form.append("turnstileToken", token);
     try {
       const res = await fetch("/api/photo/colorize", { method: "POST", body: form });
-      const data = (await res.json().catch(() => null)) as { jobId?: string; error?: string; suggestMode?: string } | null;
+      const data = (await res.json().catch(() => null)) as { jobId?: string; error?: string; suggestMode?: string; freeAlternative?: "browser" | "enhance"; credits?: number } | null;
       if (!res.ok || !data?.jobId) {
         setLoading(false);
         setJobStage(null);
         setError(data?.error ?? "Could not start that job. Please try again.");
         if (data?.suggestMode === "enhance") setSuggestEnhance(true);
-        // Premium-fallback order is C -> B -> A: when the server tiers
-        // fail, offer the free browser path for plain colorize.
-        if (mode === "colorize" && browserSupported) setOfferBrowser(true);
+        // No dead end: when the server cannot start, offer the free
+        // path that fits this photo (browser colorize, or free
+        // Enhance for colour restore) instead of a red dead end.
+        if (data?.freeAlternative === "browser") {
+          if (mode === "colorize" || (mode === "restore" && (grayKind === "grayscale" || colorizeAnyway))) setOfferBrowser(true);
+        } else if (data?.freeAlternative === "enhance") {
+          setFreeAlternative("enhance");
+        } else if (mode === "colorize" && browserSupported) {
+          setOfferBrowser(true);
+        }
         return;
       }
       window.localStorage.setItem("photo-job-id", data.jobId);
       const url = new URL(window.location.href);
       url.searchParams.set("job", data.jobId);
       window.history.replaceState(null, "", url.toString());
-      setJob({ jobId: data.jobId, status: "QUEUED", stage: "queued", mode, credits: cost });
+      setJob({ jobId: data.jobId, status: "QUEUED", stage: "queued", mode, credits: data.credits ?? 0 });
       pollJob(data.jobId);
     } catch {
       setLoading(false);
@@ -403,6 +425,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     jobCancelled.current = false;
     setError("");
     setOfferBrowser(false);
+    setFreeAlternative(null);
     setSuggestEnhance(false);
     setAfterUrl("");
     setResultMeta(null);
@@ -425,7 +448,10 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       setQuality("ai");
       setResultMeta({
         quality: "ai",
-        note: "Colorized on your device — your photo never left this device. Output is capped at 2048px on this path.",
+        note:
+          mode === "restore"
+            ? "Colorized on your device — your photo never left this device. Output is capped at 2048px on this path. Model face and scratch repair was not applied on this free path."
+            : "Colorized on your device — your photo never left this device. Output is capped at 2048px on this path.",
         browser: true,
       });
       setLoading(false);
@@ -435,11 +461,6 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       setBrowserProgress("");
       setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it). Try server colorize instead.");
     }
-  }
-
-  function run() {
-    if (mode === "enhance") startEnhance();
-    else startColorizeJob();
   }
 
   function downloadResult() {
@@ -490,25 +511,27 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       : quality === "standard"
         ? "Quality: Standard"
         : "";
-  const showGrayscaleWarn = isColorizeMode && mode === "colorize" && grayKind === "color";
+  // The grayscale gate is a HINT, never a block: a faded/sepia photo
+  // often measures as "colour". The user may always override it.
+  const showGrayscaleHint = isColorizeMode && mode === "colorize" && grayKind === "color" && !colorizeAnyway;
   const showGrayscaleSuggest = mode === "enhance" && grayKind === "grayscale";
   const restoreNote =
-    mode === "restore" && grayKind === "grayscale"
-      ? "This looks black & white, so Restore will repair it, then colorize it."
-      : mode === "restore" && grayKind === "color"
-        ? "This looks like a colour photo, so Restore will repair and upscale it without colorizing."
-        : null;
-  const runDisabled =
-    !file ||
-    loading ||
-    (isColorizeMode && !colorizeAvailable) ||
-    showGrayscaleWarn;
+    mode === "restore" && !colorizeAvailable
+      ? grayKind === "color"
+        ? "Server restore is not set up right now. Free Enhance below sharpens and upscales this colour photo instead — model face/scratch repair needs the server."
+        : "Server restore is not set up right now. The free browser path below can colorize this photo, but it cannot repair faces or scratches."
+      : mode === "restore" && grayKind === "grayscale"
+        ? "This looks black & white, so Restore will repair it, then colorize it."
+        : mode === "restore" && grayKind === "color"
+          ? "This looks like a colour photo, so Restore will repair and upscale it without colorizing."
+          : null;
+  const runDisabled = !file || loading || (isColorizeMode && !colorizeAvailable && !browserSupported && freeAlternative !== "enhance");
 
-  const creditLine = caps
-    ? caps.signedIn && caps.remainingCredits !== null
-      ? `This will use ${cost} credit${cost === 1 ? "" : "s"}. You have ${caps.remainingCredits} of ${caps.creditBudget} left today.`
-      : `This will use ${cost} credit${cost === 1 ? "" : "s"}. Free: ${caps.photoCreditsFree} photo credits per day.`
-    : `This will use ${cost} credit${cost === 1 ? "" : "s"}.`;
+  // Free paths never show credit numbers. The only "limit" text is the
+  // abuse-protection limiter (5/min), which is not a usage cap.
+  const freeLine = isPremium
+    ? "Free — unlimited uses. Premium adds faster server processing, HD 4x and face enhance. Abuse protection only: max 5 requests per minute."
+    : "Free — unlimited uses. Abuse protection only: max 5 requests per minute.";
 
   return (
     <div className="mt-8">
@@ -532,6 +555,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                       trackEvent("photo_mode");
                       setError("");
                       setSuggestEnhance(false);
+                      setColorizeAnyway(false);
+                      setFreeAlternative(null);
                       setAfterUrl("");
                       setResultMeta(null);
                       setJob(null);
@@ -542,9 +567,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                   {c.title}
                 </span>
                 <span className="text-sm text-muted-fg dark:text-slate-400">{c.desc}</span>
-                <span className="text-sm font-medium">
-                  {caps?.photoCreditCost?.[c.value] ?? (c.value === "enhance" ? 1 : c.value === "colorize" ? 2 : 3)} credit{(caps?.photoCreditCost?.[c.value] ?? 1) === 1 ? "" : "s"}
-                </span>
+                <span className="text-sm font-medium">Free — unlimited</span>
               </label>
             ))}
           </div>
@@ -644,9 +667,12 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         </div>
 
         {grayChecking && <p role="status" className="mt-3 text-sm text-muted-fg dark:text-slate-400">Checking whether this photo is black & white…</p>}
-        {showGrayscaleWarn && (
-          <div className="mt-3"><Alert kind="error">This looks like a colour photo already, so there is nothing to colorize. Choose “Enhance only” instead.</Alert>
-            <Button type="button" variant="secondary" className="mt-2" onClick={() => setMode("enhance")}>Switch to Enhance only</Button>
+        {showGrayscaleHint && (
+          <div className="mt-3"><Alert kind="info">This looks like it already has colour, so colorize may change its colours. If it is actually a faded or sepia old photo, you can still colorize it.</Alert>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={() => setColorizeAnyway(true)}>Colorize anyway</Button>
+              <Button type="button" variant="outline" onClick={() => setMode("enhance")}>Switch to Enhance only</Button>
+            </div>
           </div>
         )}
         {showGrayscaleSuggest && (
@@ -659,7 +685,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         )}
         {restoreNote && <div className="mt-3"><Alert kind="info">{restoreNote}</Alert></div>}
         {isColorizeMode && !colorizeAvailable && (
-          <div className="mt-3"><Alert kind="error">{colorizeBlockedReason ?? "Colorize is unavailable right now."} Enhance only still works.</Alert></div>
+          <div className="mt-3"><Alert kind="info">Server colorize is not set up right now — use the free option below instead. It runs on your device (browser colorize) or as free Enhance, with no daily limit and no account needed.</Alert></div>
         )}
 
         <div className="mt-4"><TurnstileWidget onToken={setToken} /></div>
@@ -667,7 +693,10 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
           <div className="mt-4"><Alert kind="error">{error}</Alert>
             {suggestEnhance && <Button type="button" variant="secondary" className="mt-2" onClick={() => setMode("enhance")}>Switch to Enhance only</Button>}
             {offerBrowser && (
-              <Button type="button" variant="secondary" className="mt-2" onClick={startBrowserColorize}>Try free browser colorize instead (no credits, photo stays on this device)</Button>
+              <Button type="button" variant="secondary" className="mt-2" onClick={startBrowserColorize}>Try free browser colorize instead (no daily limit, photo stays on this device)</Button>
+            )}
+            {freeAlternative === "enhance" && (
+              <Button type="button" variant="secondary" className="mt-2" onClick={startEnhance}>Enhance free instead (sharpen + upscale, no daily limit)</Button>
             )}
           </div>
         )}
@@ -708,37 +737,81 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
             </p>
           </div>
         )}
-        <p className="mt-4 text-sm text-muted-fg dark:text-slate-400" role="status">{creditLine}</p>
-        {mode === "colorize" && browserSupported && !showGrayscaleWarn ? (
+        <p className="mt-4 text-sm text-muted-fg dark:text-slate-400" role="status">{freeLine}</p>
+        {mode === "enhance" ? (
+          <Button type="button" onClick={startEnhance} disabled={!file || loading} className="mt-3 w-full sm:w-auto">
+            {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+            {loading ? "Enhancing…" : "Enhance photo — free, unlimited"}
+          </Button>
+        ) : mode === "colorize" ? (
+          colorizeAvailable ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              {isPremium ? (
+                <>
+                  <Button type="button" onClick={startColorizeJob} disabled={runDisabled}>
+                    {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+                    {loading ? "Working…" : "Colorize photo — Premium speed"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={startBrowserColorize} disabled={!file || loading}>
+                    Or colorize free in your browser
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button type="button" onClick={startBrowserColorize} disabled={!file || loading}>
+                    {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+                    {loading ? "Working…" : "Colorize free in browser"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={startColorizeJob} disabled={runDisabled}>
+                    Or use server colorize — free, unlimited
+                  </Button>
+                  <span className="text-sm text-muted-fg dark:text-slate-400">Browser colorize is unlimited and your photo never leaves this device. Server colorize uses the free server route, also unlimited.</span>
+                </>
+              )}
+            </div>
+          ) : browserSupported ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button type="button" onClick={startBrowserColorize} disabled={!file || loading}>
+                {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+                {loading ? "Working…" : "Colorize free in browser"}
+              </Button>
+              <span className="text-sm text-muted-fg dark:text-slate-400">Server colorize is not set up right now — this free browser path runs on your device and your photo never leaves it.</span>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <p className="text-sm text-muted-fg dark:text-slate-400">Browser colorize needs a browser with WebAssembly and canvas support. Try another browser, or use Enhance below.</p>
+              <Button type="button" onClick={startEnhance} disabled={!file || loading} className="mt-2">
+                Enhance photo — free, unlimited
+              </Button>
+            </div>
+          )
+        ) : colorizeAvailable ? (
+          <Button type="button" onClick={startColorizeJob} disabled={runDisabled} className="mt-3 w-full sm:w-auto">
+            {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+            {loading ? "Working…" : isPremium ? "Restore photo — Premium speed" : "Restore photo — free, unlimited"}
+          </Button>
+        ) : grayKind === "color" && !colorizeAnyway ? (
+          <div className="mt-3">
+            <p className="text-sm text-muted-fg dark:text-slate-400">This looks like a colour photo, so there is nothing to colorize and server repair is not set up right now. Free Enhance sharpens and upscales it instead.</p>
+            <Button type="button" onClick={startEnhance} disabled={!file || loading} className="mt-2">
+              Enhance photo — free, unlimited
+            </Button>
+          </div>
+        ) : browserSupported ? (
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {!isPremium ? (
-              <>
-                <Button type="button" onClick={startBrowserColorize} disabled={!file || loading}>
-                  {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
-                  {loading ? "Working…" : "Colorize in browser — free"}
-                </Button>
-                <Button type="button" variant="outline" onClick={startColorizeJob} disabled={runDisabled}>
-                  Use server colorize ({cost} credits)
-                </Button>
-                <span className="text-sm text-muted-fg dark:text-slate-400">Browser colorize is unlimited and your photo never leaves this device. Server colorize uses a stronger model and costs credits.</span>
-              </>
-            ) : (
-              <>
-                <Button type="button" onClick={run} disabled={runDisabled}>
-                  {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
-                  {loading ? "Working…" : "Colorize photo"}
-                </Button>
-                <Button type="button" variant="outline" onClick={startBrowserColorize} disabled={!file || loading}>
-                  Or colorize free in your browser
-                </Button>
-              </>
-            )}
+            <Button type="button" onClick={startBrowserColorize} disabled={!file || loading}>
+              {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
+              {loading ? "Working…" : "Colorize free in browser"}
+            </Button>
+            <span className="text-sm text-muted-fg dark:text-slate-400">Server restore is not set up right now. This free path colorizes on your device but cannot repair faces or scratches.</span>
           </div>
         ) : (
-          <Button type="button" onClick={run} disabled={runDisabled} className="mt-3 w-full sm:w-auto">
-            {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
-            {loading ? (isColorizeMode ? "Working…" : "Enhancing…") : mode === "enhance" ? "Enhance photo" : mode === "colorize" ? "Colorize photo" : "Restore photo"}
-          </Button>
+          <div className="mt-3">
+            <p className="text-sm text-muted-fg dark:text-slate-400">Browser colorize needs a browser with WebAssembly and canvas support. Try another browser, or use Enhance below.</p>
+            <Button type="button" onClick={startEnhance} disabled={!file || loading} className="mt-2">
+              Enhance photo — free, unlimited
+            </Button>
+          </div>
         )}
         {qualityLabel && !isColorizeResult && (
           <div className="mt-4"><Alert kind={quality === "ai" ? "success" : "info"}>{qualityLabel}{outSize ? ` — Done. Output ${outSize}.` : "."}</Alert></div>
