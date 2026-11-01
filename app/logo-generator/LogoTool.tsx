@@ -1,6 +1,6 @@
 "use client";
 import { trackEvent } from "@/lib/analytics";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Check, Copy, Download, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,6 @@ const STAGES = [
   "Adding your brand name…",
   "Polishing 3 variants…",
 ];
-
-type Limits = { signedIn: boolean; limit: number; remaining: number | null };
 
 async function svgToPngBlob(svg: string): Promise<Blob> {
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
@@ -84,7 +82,6 @@ export function LogoTool() {
   const [variants, setVariants] = useState<string[]>([]);
   const [selected, setSelected] = useState(0);
   const [copied, setCopied] = useState<number | null>(null);
-  const [limits, setLimits] = useState<Limits | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -138,26 +135,13 @@ export function LogoTool() {
   }
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const refreshLimits = useCallback(async () => {
-    try {
-      const res = await fetch("/api/logo/limits");
-      if (res.ok) setLimits((await res.json()) as Limits);
-    } catch {
-      // Counter is a nicety; generation still works without it.
-    }
-  }, []);
-
   useEffect(() => {
-    // Deferred so the effect never sets state synchronously (lint:
-    // react-hooks/set-state-in-effect); the callback still runs once.
-    const raf = requestAnimationFrame(() => {
-      void refreshLimits();
-    });
+    // Only the stage-timer cleanup lives here now: logo generation is
+    // free + unlimited, so there is no counter to refresh.
     return () => {
-      cancelAnimationFrame(raf);
       if (stageTimer.current) clearInterval(stageTimer.current);
     };
-  }, [refreshLimits]);
+  }, []);
 
   function startStages() {
     setStage(0);
@@ -174,12 +158,7 @@ export function LogoTool() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, style, colors, brandName: brandName || undefined, turnstileToken: token || undefined }),
     });
-    const data = (await res.json().catch(() => ({}))) as { variants?: string[]; svg?: string; error?: string; remaining?: number; limit?: number };
-    if (typeof data.remaining === "number" && typeof data.limit === "number") {
-      setLimits((prev) => ({ signedIn: prev?.signedIn ?? false, limit: data.limit as number, remaining: data.remaining as number }));
-    } else {
-      void refreshLimits();
-    }
+    const data = (await res.json().catch(() => ({}))) as { variants?: string[]; svg?: string; error?: string };
     if (!res.ok) {
       setError(data.error || "Something went wrong. Please try again.");
       return null;
@@ -204,7 +183,7 @@ export function LogoTool() {
         setVariants(list);
         trackEvent("logo_generate");
         setSelected(0);
-        setNotice("One request = 3 variants = 1 credit of your daily limit.");
+        setNotice("One request gives 3 variants. Logo generation is free and unlimited.");
       }
     } catch {
       setError("Could not reach the server. Check your connection and try again.");
@@ -226,7 +205,7 @@ export function LogoTool() {
           return next;
         });
         setSelected(index);
-        setNotice("Variant regenerated. Each regeneration uses 1 credit.");
+        setNotice("Variant regenerated.");
       }
     } catch {
       setError("Could not reach the server. Check your connection and try again.");
@@ -270,13 +249,6 @@ export function LogoTool() {
       setError("Could not copy to the clipboard. Use Download SVG instead.");
     }
   }
-
-  const atLimit = limits?.remaining === 0;
-  const counterText = limits
-    ? limits.remaining !== null
-      ? `${limits.remaining} of ${limits.limit} left today`
-      : `Free tier: ${limits.limit} logos per day`
-    : "Free tier: 10 logos per day";
 
   return (
     <div>
@@ -346,13 +318,12 @@ export function LogoTool() {
           <div className="mt-4"><TurnstileWidget onToken={setToken} /></div>
           {error && <div className="mt-4"><Alert kind="error">{error}</Alert></div>}
           {notice && <div className="mt-4"><Alert kind="success">{notice}</Alert></div>}
-          <Button type="submit" disabled={loading || prompt.trim().length < 3 || atLimit} className="mt-5 w-full">
+          <Button type="submit" disabled={loading || prompt.trim().length < 3} className="mt-5 w-full">
             {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
-            {atLimit ? "Daily limit reached — try again tomorrow" : loading ? "Generating…" : "Generate 3 logo variants"}
+            {loading ? "Generating…" : "Generate 3 logo variants"}
           </Button>
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400" aria-live="polite">
-            {counterText}. One request gives 3 variants and uses 1 credit.
-            {atLimit && " You have used today's free logos — sign in or upgrade for more tomorrow."}
+            Logo generation is free and unlimited — one request gives 3 variants.
             {" "}If AI generation is not configured, you will see an honest message instead of a fake logo.
           </p>
         </form>
@@ -380,7 +351,7 @@ export function LogoTool() {
                       <span className="block h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
                     </button>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <Button type="button" variant="outline" className="flex-1 px-1 text-xs" disabled={regenIndex !== null || atLimit} onClick={() => regenerateVariant(i)} aria-label={`Regenerate variant ${i + 1}`}>
+                      <Button type="button" variant="outline" className="flex-1 px-1 text-xs" disabled={regenIndex !== null} onClick={() => regenerateVariant(i)} aria-label={`Regenerate variant ${i + 1}`}>
                         {regenIndex === i ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={14} aria-hidden="true" />} Regenerate
                       </Button>
                       <Button type="button" variant="outline" className="flex-1 px-1 text-xs" onClick={() => downloadSvg(svg, i)} aria-label={`Download variant ${i + 1} as SVG`}>
@@ -398,7 +369,7 @@ export function LogoTool() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-muted-fg dark:text-slate-400">Regenerating one variant uses 1 credit and replaces only that variant.</p>
+              <p className="mt-3 text-xs text-muted-fg dark:text-slate-400">Regenerating one variant replaces only that variant.</p>
               {variants[selected] && <MockupPreview svg={variants[selected]} brand={brandName} />}
             </div>
           ) : (

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "AI Logo Maker — Original Logos from a Description",
   description:
-    "Describe your brand and generate an original SVG logo in seconds, free. Download SVG or 1024 px PNG, try mockups, and regenerate with the same idea. Free tier: 10 requests per day, 3 variants each.",
+    "Describe your brand and generate an original SVG logo in seconds, free and unlimited. Download SVG or 1024 px PNG, try mockups, and regenerate with the same idea. 3 variants each.",
   openGraph: {
     title: "AI Logo Maker | AI Studio",
     description:
@@ -31,7 +31,7 @@ const faqs = [
   },
   {
     q: "How much is free?",
-    a: "10 logo requests per day on the free tier, with 3 variants per request. Premium raises that to 100 requests per day. The Premium price comes from Paddle at checkout — it is never invented on this page.",
+    a: "Logo generation is free and unlimited, with 3 variants per request. Premium adds faster paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited. The Premium price comes from Paddle at checkout — it is never invented on this page.",
   },
   {
     q: "Can I use the logo for my business?",

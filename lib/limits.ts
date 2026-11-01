@@ -7,14 +7,21 @@
 // it comes from this module. Change a limit here and the whole site
 // agrees.
 //
-// CANONICAL POLICY — FREE + UNLIMITED PHOTOS (2026-11-01, owner decision):
+// CANONICAL POLICY — FREE + UNLIMITED PHOTOS AND LOGOS (2026-11-01,
+// owner decisions):
 // - Photo jobs on FREE routes are UNLIMITED, forever, for every user
 //   including guests. Free routes = browser on-device colorize (Tier A),
 //   the owner's free server route (Tier B, Space), and local Sharp
 //   enhance / cleanup. There is NO daily photo cap, NO credit balance,
 //   and NO "will use N credits" copy on any free path.
+// - Logo requests are UNLIMITED too, forever, for every user including
+//   guests (owner decision 2026-11-01, extending the photo model).
+//   There is NO daily logo cap, NO logo credit balance, and NO
+//   "will use credits" copy on any logo path. One request still gives
+//   3 variants; signing in still adds saved logo history and
+//   favorites (history needs an account, which is not a credit gate).
 // - Abuse protection is NOT a usage cap: the 5-requests-per-minute
-//   per-IP limiter still applies to every photo route. At 5/min an IP
+//   per-IP limiter still applies to every tool route. At 5/min an IP
 //   can still make thousands of uses per day — the limiter only stops
 //   bursts and bots.
 // - Paid-GPU jobs (image pool) bill the owner per run, so they stay
@@ -24,14 +31,11 @@
 //   limit, and it never appears on free paths. Free users are NEVER
 //   routed to paid GPU: when the free routes are unavailable, free
 //   users get the free browser path, never a GPU bill and never a block.
-// - Logo requests keep their own daily budgets (a separate capability
-//   with its own provider limits): Free 10/day, Premium 100/day
-//   (1 request = 3 variants).
 // - Premium-only photo perks: HD 4x upscaling up to 4096px longest
 //   edge, face enhance on upscales, priority generation. Free photo
 //   output is up to 2x / 2048px.
-// - Signing in does NOT raise free photo limits (there is no free
-//   photo limit to raise): signed-in free = unlimited photos, same as
+// - Signing in does NOT raise free limits (there is no free limit to
+//   raise): signed-in free = unlimited photos and logos, same as
 //   guests. Signing in adds history, favorites, and account features.
 
 import { getSettings } from "./settings";
@@ -52,8 +56,8 @@ export const LIMITS = {
   } as Record<PhotoMode, number>,
   /** Premium paid-GPU fair-use budget per day (Premium only). */
   photoCreditsPremium: 100,
-  logoRequestsFree: 10,
-  logoRequestsPremium: 100,
+  /** True: logo requests have no daily cap, ever, for any user. */
+  logoFreeUnlimited: true,
   photoModeLabel: {
     enhance: "Enhance",
     colorize: "Colorize",
@@ -68,12 +72,12 @@ export const LIMITS = {
     "HD 4x upscaling up to 4096px longest edge",
     "Face enhance on upscales",
     "Priority generation",
-    "Saved logo history with favorites",
     "No ads",
   ],
   freePerks: [
     "Unlimited photo enhance, colorize and restore via the free routes",
-    "Logo requests with 3 variants each",
+    "Unlimited logo requests, 3 variants each",
+    "Saved logo history with favorites when signed in",
     "SVG and 1024px PNG downloads",
     "No account, no payment details",
   ],
@@ -83,8 +87,8 @@ export interface EffectiveLimits {
   photoFreeUnlimited: boolean;
   photoCreditsPremium: number;
   photoCreditCost: Record<PhotoMode, number>;
-  logoRequestsFree: number;
-  logoRequestsPremium: number;
+  /** True: logo requests have no daily cap, ever, for any user. */
+  logoFreeUnlimited: boolean;
 }
 
 /** Limits with admin SiteSetting overrides applied (defaults = LIMITS). */
@@ -100,8 +104,9 @@ export async function getEffectiveLimits(): Promise<EffectiveLimits> {
     // There is no free photo budget anymore (free photos are unlimited).
     photoCreditsPremium: num("enhanceDailyPremium", LIMITS.photoCreditsPremium),
     photoCreditCost: { ...LIMITS.photoCreditCost },
-    logoRequestsFree: num("logoDailyFree", LIMITS.logoRequestsFree),
-    logoRequestsPremium: num("logoDailyPremium", LIMITS.logoRequestsPremium),
+    // Logos are unlimited: no daily logo budget exists anymore, so
+    // there is nothing for an admin setting to override here.
+    logoFreeUnlimited: true,
   };
 }
 
@@ -113,10 +118,4 @@ export async function photoCreditBudgetFor(plan: "FREE" | "PREMIUM"): Promise<nu
   if (plan === "FREE") return Number.POSITIVE_INFINITY;
   const l = await getEffectiveLimits();
   return l.photoCreditsPremium;
-}
-
-/** Logo request budget for a plan (uses the effective limits). */
-export async function logoRequestBudgetFor(plan: "FREE" | "PREMIUM"): Promise<number> {
-  const l = await getEffectiveLimits();
-  return plan === "PREMIUM" ? l.logoRequestsPremium : l.logoRequestsFree;
 }

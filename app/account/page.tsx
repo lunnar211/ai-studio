@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { countJobsToday, getSettings } from "@/lib/settings";
+import { countJobsToday } from "@/lib/settings";
 import { ExportButton, DeleteButton, CheckoutButton } from "./AccountActions";
 import LogoHistory from "@/components/LogoHistory";
 
@@ -45,7 +45,6 @@ export default async function AccountPage() {
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/signin");
-  const settings = await getSettings();
   const logoToday = await countJobsToday(user.id, "logo");
   const jobs = await prisma.job.findMany({
     where: { userId: user.id },
@@ -78,7 +77,7 @@ export default async function AccountPage() {
       <section aria-label="Usage today">
         <h2 className="text-2xl font-bold">Usage today</h2>
         <p className="mt-2 text-muted-fg dark:text-slate-300">
-          Logos: {logoToday} / {dbUser.plan === "PREMIUM" ? settings.logoDailyPremium : settings.logoDailyFree} ·{" "}
+          Logos generated today: {logoToday} (unlimited) ·{" "}
           Photos: unlimited on the free routes{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
         </p>
         <div className="mt-4">

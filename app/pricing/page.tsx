@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getEffectiveLimits } from "@/lib/limits";
 import { formatPaddlePrice, getPaddlePriceDisplay, paddleConfigured } from "@/lib/paddle";
 import { CheckoutButton } from "@/app/account/AccountActions";
 
@@ -21,7 +20,6 @@ const jsonLd = {
 };
 
 export default async function PricingPage() {
-  const limits = await getEffectiveLimits();
   const configured = paddleConfigured();
   const monthly = configured ? await getPaddlePriceDisplay(process.env.PADDLE_PRICE_ID ?? "") : null;
   const yearlyId = process.env.PADDLE_PRICE_ID_YEARLY ?? "";
@@ -43,7 +41,7 @@ export default async function PricingPage() {
           <h2 className="text-2xl font-bold">Free</h2>
           <p className="mt-2 text-3xl font-bold">$0</p>
           <ul className="mt-4 list-disc space-y-2 pl-6">
-            <li>{limits.logoRequestsFree} logo requests per day (each request gives 3 variants)</li>
+            <li>Unlimited logo requests (each request gives 3 variants)</li>
             <li>Unlimited photo enhance, colorize and restore via the free routes (browser colorize + free server route + local sharpening), no daily cap, no account needed</li>
             <li>Logo downloads: SVG and 1024px PNG</li>
             <li>Photo downloads: PNG, JPG, or WebP</li>
@@ -71,7 +69,6 @@ export default async function PricingPage() {
             </p>
           )}
           <ul className="mt-4 list-disc space-y-2 pl-6">
-            <li>{limits.logoRequestsPremium} logo requests per day (each request gives 3 variants)</li>
             <li>Fast paid-GPU photo processing (the free routes stay unlimited for everyone)</li>
             <li>HD 4x upscaling up to 4096px longest edge</li>
             <li>Face enhance on upscales</li>
@@ -108,25 +105,24 @@ export default async function PricingPage() {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Logo requests per day</th><td className="p-3">{limits.logoRequestsFree} (3 variants each)</td><td className="p-3">{limits.logoRequestsPremium} (3 variants each)</td></tr>
+              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Logo requests</th><td className="p-3">Unlimited (3 variants each)</td><td className="p-3">Unlimited (3 variants each)</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Photo enhance / colorize / restore</th><td className="p-3">Unlimited via the free routes</td><td className="p-3">Unlimited free routes + fast paid-GPU route</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">HD upscaling</th><td className="p-3">Up to 2x / 2048px</td><td className="p-3">Up to 4x / 4096px</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Face enhance</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Priority generation</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Logo history + favorites</th><td className="p-3">Signed-in free: yes, same limits</td><td className="p-3">Yes</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Ads</th><td className="p-3">Only if approved and consented (never on tools behind sign-in)</td><td className="p-3">No ads</td></tr>
-              <tr><th scope="row" className="p-3 font-medium">Downloads</th><td className="p-3">Logos: SVG + PNG 1024. Photos: PNG, JPG, WebP.</td><td className="p-3">Same formats, higher limits.</td></tr>
+              <tr><th scope="row" className="p-3 font-medium">Downloads</th><td className="p-3">Logos: SVG + PNG 1024. Photos: PNG, JPG, WebP.</td><td className="p-3">Same formats, plus HD 4x photo export.</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
       <p className="mt-6 text-sm text-muted-fg dark:text-slate-400">
-        Photo use on the free routes is unlimited (no daily cap); abuse
-        protection limits requests to 5 per minute per visitor. Logo
-        requests are per visitor (free) or per account (signed in),
-        counted per day. One logo request — 3 variants — uses 1 logo
-        credit. Browser colorize is unlimited and uses no credits.
+        Photo use on the free routes is unlimited (no daily cap), and logo
+        requests are unlimited too. Abuse protection limits requests to
+        5 per minute per visitor. One logo request gives 3 variants.
+        Browser colorize is unlimited.
         Refunds: contact us via
         the <Link href="/contact" className="underline">Contact page</Link> within
         14 days of the charge with your transaction id; approved refunds are

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { LIMITS } from "@/lib/limits";
 export const metadata: Metadata = { title: "Terms of Service", description: "Terms for using AI Studio's logo generator and photo enhancer." };
 export default function Terms() {
   return (
@@ -7,7 +6,7 @@ export default function Terms() {
       <h1 className="font-display text-4xl font-bold italic">Terms of Service</h1>
       <p className="text-muted-fg dark:text-slate-300">Last updated: November 2026. By using AI Studio you accept these terms.</p>
       <h2 className="text-2xl font-bold">The service</h2>
-      <p className="text-muted-fg dark:text-slate-300">AI Studio provides an AI logo generator and a photo enhancer. Guest use is free: photo enhance, colorize and restore are unlimited via the free routes (abuse protection: 5 photo requests per minute per visitor), and logo requests are limited to {LIMITS.logoRequestsFree} per day per visitor. Signing in keeps the same free photo use and adds history and account features; Premium adds fast paid-GPU photo processing and raises logo requests to {LIMITS.logoRequestsPremium} per day. We may change limits, suspend abusive accounts, or discontinue a tool with notice on the site.</p>
+      <p className="text-muted-fg dark:text-slate-300">AI Studio provides an AI logo generator and a photo enhancer. Guest use is free: photo enhance, colorize and restore are unlimited via the free routes, and logo requests are unlimited too (abuse protection: 5 requests per minute per visitor). Signing in keeps the same free use and adds history and account features; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority. We may change limits, suspend abusive accounts, or discontinue a tool with notice on the site.</p>
       <h2 className="text-2xl font-bold">Age rules (self-declaration, no ID documents)</h2>
       <ul className="list-disc space-y-2 pl-6 text-muted-fg dark:text-slate-300">
         <li>Under 13: no account. The account is deleted/blocked and no data is kept (COPPA and the GDPR-K lower bound).</li>

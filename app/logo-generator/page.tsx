@@ -3,7 +3,7 @@ import { LogoTool } from "./LogoTool";
 
 export const metadata: Metadata = {
   title: "AI Logo Generator — Original Logos from a Description",
-  description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG. Free tier: 10 logos per day. Brand and celebrity prompts are refused.",
+  description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG. Free and unlimited. Brand and celebrity prompts are refused.",
   openGraph: {
     title: "AI Logo Generator | AI Studio",
     description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG.",
@@ -75,7 +75,7 @@ export default function LogoPage() {
         </p>
         <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
           Files are processed on our server and deleted immediately after processing (max 60 minutes in any case);
-          we never list or share them. Free tier: 10 requests per day per visitor; one request gives 3 variants.
+          we never list or share them. Logo generation is free and unlimited; one request gives 3 variants.
         </p>
       </section>
       <section aria-labelledby="faq-logo" className="mt-8">

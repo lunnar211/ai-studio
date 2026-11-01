@@ -25,7 +25,7 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 | Route | What it does |
 | --- | --- |
 | `/` | Home: hero, tool cards, how-it-works, FAQ, trust, premium, other projects |
-| `/logo-generator` | AI logo generator: 9 example logos, suggested prompts, brand-name input, 3 variants per request, per-variant Regenerate / SVG / PNG 1024 / Copy SVG, mockup preview (card, shirt, app icon), live daily counter |
+| `/logo-generator` | AI logo generator: 9 example logos, suggested prompts, brand-name input, 3 variants per request, per-variant Regenerate / SVG / PNG 1024 / Copy SVG, mockup preview (card, shirt, app icon), free and unlimited |
 | `/photo-enhancer` | Photo enhancer (drag-and-drop, real upload progress, before/after slider, PNG + JPG download) |
 | `/pricing`, `/faq` | Pricing (Free 10/day vs Premium 100/day, Paddle checkout, price shown at checkout) and FAQ |
 | `/logo-for-coffee-shop`, `/logo-for-tech-startup`, `/logo-for-fitness-studio` | Original use-case pages with JSON-LD |
@@ -38,7 +38,7 @@ TypeScript + Tailwind CSS v4, with hand-rolled shadcn-style components in `compo
 
 | Route | Behaviour |
 | --- | --- |
-| `POST /api/logo/generate` | Zod-validated `{prompt (≤300), style, colors, brandName (≤40)}`. Strict designer prompt (one SVG, 512 canvas, transparent background, ≤8 shapes, ≤3 palette colours, brand name in bold sans-serif `<text>`). Groq `openai/gpt-oss-120b` primary + `openai/gpt-oss-20b` fallback; 3 variants in parallel, fallback round fills missing slots. Output is whitelist-sanitized server-side (`<text>` allowed, safe attrs only) and validated before return. Brand/celebrity prompts refused (400, pre-check blocklist + model `REFUSED` handling). Groq 429 → honest 429, never a fake logo. Without `GROQ_API_KEY` returns an honest 503. One request = 1 quota unit = 3 variants; signed-in quotas from SiteSetting via Job rows, guests 10/day per IP. Signed-in successes also save a `LogoGeneration` row (history). |
+| `POST /api/logo/generate` | Zod-validated `{prompt (≤300), style, colors, brandName (≤40)}`. Strict designer prompt (one SVG, 512 canvas, transparent background, ≤8 shapes, ≤3 palette colours, brand name in bold sans-serif `<text>`). Groq `openai/gpt-oss-120b` primary + `openai/gpt-oss-20b` fallback; 3 variants in parallel, fallback round fills missing slots. Output is whitelist-sanitized server-side (`<text>` allowed, safe attrs only) and validated before return. Brand/celebrity prompts refused (400, pre-check blocklist + model `REFUSED` handling). Groq 429 → honest 429, never a fake logo. Without `GROQ_API_KEY` returns an honest 503. One request = 3 variants, free and unlimited for everyone including guests (no daily quota; only the 5/min per-IP abuse limiter applies). Signed-in successes also save a `LogoGeneration` row (history). |
 | `GET /api/logo/limits` | Free-tier counter: signed-in exact counts from the DB; guest in-memory peek (null remaining under Upstash, where peeking is impossible without consuming). |
 | `GET/DELETE /api/account/jobs`, `PATCH/DELETE /api/account/jobs/[id]` | Own-user-only saved-logo history: list, favorite toggle, delete one, delete all. Returns an honest 503 (not fake-empty) until the schema push creates the table. |
 | `POST /api/logo/png` | Sanitizes the supplied SVG again, rasterizes with Sharp at 1024px, transparent background. |

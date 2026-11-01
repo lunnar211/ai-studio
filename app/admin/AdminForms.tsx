@@ -85,7 +85,6 @@ export function SettingsForm({ initial }: { initial: Record<string, string> }) {
   const { post, state, busy } = usePost("/api/admin/settings");
   const [values, setValues] = useState(initial);
   const fields: Array<[string, string]> = [
-    ["logoDailyFree", "Logo daily limit (free)"], ["logoDailyPremium", "Logo daily limit (premium)"],
     // enhanceDailyFree no longer gates anything: free photos are
     // unlimited. enhanceDailyPremium is the Premium paid-GPU budget.
     ["enhanceDailyPremium", "Premium paid-GPU photo budget per day"],

@@ -312,3 +312,48 @@ charged credits even when they ran on a free tier. Fixed:
   credits → no credit block anywhere → "Colorize anyway" works on a faded photo → server
   colorize (once the Space is set up) works free and unlimited → network responses still
   leak-free. NEVER claimed preview-verified; merge to master still needs explicit approval.
+
+## Fix — free + unlimited logos, no credit gate (this change)
+
+Owner complaint (2026-11-01): the logo generator still asked for credits to generate,
+after the photo tools had just been made free + unlimited. Fixed the same way:
+
+- LOGOS = UNLIMITED, forever, for everyone including guests: the daily logo budgets
+  (Free 10/day, Premium 100/day) are deleted from the single limits config, the logo
+  generate route, and every page. No daily cap, no credit balance, no "will use credits"
+  copy on any logo path. One request still gives 3 variants. The 5/min per-IP limiter
+  STAYS on the generate route — abuse protection, not a usage cap.
+- Removed, not bypassed: the signed-in daily quota check (`dailyQuota("logo")` + Job-row
+  counting), the guest daily bucket (`checkAiRateLimit` for logos), the
+  `/api/logo/limits` endpoint (deleted — it only existed to feed the counter), the
+  logo counter + "Daily limit reached" states in the generator UI, the `logoDailyFree` /
+  `logoDailyPremium` admin settings, and the `logoRequestBudgetFor` helper. Signed-in
+  status now only decides whether the result is saved to logo history (history still
+  needs an account + the pushed schema — that is not a credit gate, and guests get no
+  history, stated honestly).
+- Safety nets kept, never user-facing as credit blocks: router fallback across text
+  providers, 1 retry, circuit breaker, and the admin-side daily AI spend cap + 80%
+  alert (admin log only). On total provider exhaustion the user gets an honest
+  "The AI service is busy right now. Please wait a minute and try again." — never a
+  credit/limit message, never a fake logo. SVG sanitizer, file validation, and
+  Turnstile checks are unchanged.
+- Copy rewritten to the new model everywhere: pricing (Free = unlimited logo requests;
+  Premium list no longer promises more logos), FAQ, Home, About, Privacy, Terms,
+  Footer, account page (logo count shown without a limit), admin labels, the AI Logo
+  Maker landing page, the logo-generator page, and README. Premium now means faster
+  paid-GPU photo processing + HD 4x up to 4096px + face enhance + priority — NOT more
+  logos, because logos are already unlimited. No invented prices; Upgrade stays hidden
+  when Paddle is unconfigured.
+- P0 intact: leak scan re-run — no provider/model/env names in any logo API response
+  or result UI (provider names appear only in code comments); the generate response is
+  `{ variants, svg }` only.
+- Verified: tsc clean, eslint clean, vitest 112/112 (was 111, +1 logo-unlimited limits
+  test), build EXIT=0, local `next start` checks on a fresh port (logo page 200 with
+  "free and unlimited" copy and zero credit/limit strings; deleted limits endpoint
+  returns the friendly 404 page; two generate calls in a row return the honest
+  provider-unavailable 503 with no daily-limit wording — no provider keys exist in the
+  sandbox env; pricing + FAQ pages show the unlimited logo copy). NEVER claimed
+  preview-verified; merge to master still needs explicit approval.
+- Owner preview checklist: generate a logo as guest → no credit message, no block →
+  generate several in a row → still no block → signed-in generation saves to history
+  (once the schema is pushed) → network responses leak-free.

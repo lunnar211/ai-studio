@@ -13,8 +13,8 @@ test("tool pages render", async ({ page }) => {
   // Gallery above the generator: 9 original examples, clickable.
   await expect(page.getByRole("region", { name: "Example logos" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Use example:/ })).toHaveCount(9);
-  // Free-tier counter + suggested prompts + brand-name input.
-  await expect(page.getByText(/left today|logos per day/)).toBeVisible();
+  // Free + unlimited logo copy + suggested prompts + brand-name input.
+  await expect(page.getByText(/free and unlimited/i).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "mountain coffee roaster", exact: true })).toBeVisible();
   await expect(page.getByLabel("Brand name (optional)")).toBeVisible();
   await page.goto("/photo-enhancer");

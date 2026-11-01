@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sanitizeSvg } from "@/lib/svg-sanitize";
 import { findBlocked } from "@/lib/blocklist";
-import { checkAiRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { checkMinuteRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getSessionSafe } from "@/lib/auth";
-import { countJobsToday, dailyQuota, getSetting, isIpBlocked, logJob } from "@/lib/settings";
-import { logoRequestBudgetFor } from "@/lib/limits";
+import { getSetting, isIpBlocked, logJob } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
 import {
   LOGO_MODEL_FALLBACK,
@@ -101,12 +100,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "The logo generator is temporarily disabled." }, { status: 503 });
   }
 
-  // Signed-in users get the SiteSetting quota (counted from Job rows);
-  // guests keep the previous per-IP limit (10/day).
-  // One request = one quota unit, however many variants it returns.
+  // Logo generation is FREE + UNLIMITED for every user including
+  // guests (owner decision 2026-11-01): no daily quota, no credit
+  // balance, no "limit reached" path. The only gate is the 5/min
+  // per-IP abuse limiter — not a usage cap, it still allows
+  // thousands of uses per day per IP. Signed-in status only decides
+  // whether the result is saved to logo history below.
   const session = await getSessionSafe();
-  const userId = (session?.user as unknown as { id?: string; plan?: string } | undefined)?.id ?? null;
-  const userPlan = (session?.user as unknown as { plan?: string } | undefined)?.plan === "PREMIUM" ? "PREMIUM" : "FREE";
+  const userId = (session?.user as unknown as { id?: string } | undefined)?.id ?? null;
   if ((session?.user as unknown as { status?: string } | undefined)?.status === "SUSPENDED") {
     return NextResponse.json({ error: "Account suspended." }, { status: 403 });
   }
@@ -114,26 +115,12 @@ export async function POST(req: Request) {
   if (await isIpBlocked(ip)) {
     return NextResponse.json({ error: "Access from this network is blocked." }, { status: 403 });
   }
-  let rl = { ok: true, remaining: 9, limit: 10 };
-  if (userId) {
-    const quota = await dailyQuota("logo", userPlan as "FREE" | "PREMIUM");
-    const used = await countJobsToday(userId, "logo");
-    rl = { ok: used < quota, remaining: Math.max(0, quota - used - 1), limit: quota };
-    if (!rl.ok) {
-      return NextResponse.json(
-        { error: `Daily limit reached (${quota} logos per day on your plan). Please try again tomorrow, or upgrade to Premium for 100 per day.` },
-        { status: 429, headers: rateLimitHeaders(0, quota) }
-      );
-    }
-  } else {
-    const guestBudget = await logoRequestBudgetFor("FREE");
-    rl = await checkAiRateLimit(ip, "logo", guestBudget);
-    if (!rl.ok) {
-      return NextResponse.json(
-        { error: `Daily free limit reached (${guestBudget} logos per day). Please try again tomorrow, or upgrade to Premium for 100 per day.` },
-        { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
-      );
-    }
+  const minute = await checkMinuteRateLimit(ip, "logo", 5);
+  if (!minute.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a minute and try again." },
+      { status: 429, headers: rateLimitHeaders(minute.remaining, 5) }
+    );
   }
 
   if (!(await verifyTurnstile(turnstileToken))) {
@@ -145,7 +132,7 @@ export async function POST(req: Request) {
   if (!(await anyProviderEnabled("text"))) {
     return NextResponse.json(
       { error: "AI logo generation is unavailable right now. Please try again later." },
-      { status: 503, headers: rateLimitHeaders(rl.remaining, rl.limit) }
+      { status: 503 }
     );
   }
 
@@ -201,8 +188,8 @@ export async function POST(req: Request) {
     if (sawRateLimit) {
       await logJob({ userId, tool: "logo", status: "FAILED", errorCode: "GROQ_RATE_LIMITED" });
       return NextResponse.json(
-        { error: "The AI service is busy right now (rate limited). Please wait a minute and try again — nothing was charged to your limit beyond this request." },
-        { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) }
+        { error: "The AI service is busy right now. Please wait a minute and try again." },
+        { status: 429 }
       );
     }
     await logJob({ userId, tool: "logo", status: "FAILED", errorCode: "GROQ_UNUSABLE" });
@@ -229,13 +216,8 @@ export async function POST(req: Request) {
     }
   }
   await logJob({ userId, tool: "logo", status: "SUCCESS", inputSummary: cleanedPrompt.slice(0, 120), costEstimate: parseFloat(await getSetting("groqCostPerJobUsd")) || 0.001 });
-  return NextResponse.json(
-    {
-      variants,
-      svg: variants[0],
-      remaining: rl.remaining,
-      limit: rl.limit,
-    },
-    { headers: rateLimitHeaders(rl.remaining, rl.limit) }
-  );
+  return NextResponse.json({
+    variants,
+    svg: variants[0],
+  });
 }

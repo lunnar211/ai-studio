@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LIMITS } from "@/lib/limits";
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. The only photo limit is abuse protection: 5 requests per minute per visitor. Logo generation is separate: the free tier gives you ${LIMITS.logoRequestsFree} logo requests per day, and one logo request gives 3 variants. Signing in keeps the same free photo use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority, and raises logo requests to ${LIMITS.logoRequestsPremium} per day.`,
+    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited.`,
   },
   {
     q: "What do I get from the logo generator?",

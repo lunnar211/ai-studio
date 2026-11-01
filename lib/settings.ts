@@ -3,8 +3,8 @@ import { prisma } from "./prisma";
 // SiteSetting key/value store. Defaults keep guest behaviour identical to
 // before auth existed (10/day per AI tool). All reads tolerate a missing DB.
 export const SETTING_DEFAULTS: Record<string, string> = {
-  logoDailyFree: "10",
-  logoDailyPremium: "100",
+  // Logos are unlimited since the logo-unlimited change: no daily logo
+  // budget exists anymore, so no logoDaily keys live here.
   // Legacy: free photos are unlimited since the free-unlimited change,
   // so enhanceDailyFree no longer gates anything. enhanceDailyPremium
   // remains the Premium paid-GPU photo budget per day.
@@ -49,15 +49,6 @@ export async function getSettings(): Promise<Record<string, string>> {
 
 export async function getSetting(key: string): Promise<string> {
   return (await getSettings())[key] ?? SETTING_DEFAULTS[key] ?? "";
-}
-
-export async function dailyQuota(tool: "logo" | "enhance", plan: "FREE" | "PREMIUM"): Promise<number> {
-  const s = await getSettings();
-  const key = tool === "logo"
-    ? plan === "PREMIUM" ? "logoDailyPremium" : "logoDailyFree"
-    : plan === "PREMIUM" ? "enhanceDailyPremium" : "enhanceDailyFree";
-  const n = parseInt(s[key] ?? "10", 10);
-  return Number.isFinite(n) && n > 0 ? n : 10;
 }
 
 export async function countJobsToday(userId: string, tool: string): Promise<number> {

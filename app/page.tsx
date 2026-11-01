@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
-import { LIMITS } from "@/lib/limits";
 import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
@@ -33,7 +32,7 @@ const TOOLS = [
 ];
 
 const FAQS = [
-  { q: "Is AI Studio really free?", a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. Logo generation is separate: the free tier gives you ${LIMITS.logoRequestsFree} logo requests per day per visitor, and one logo request gives 3 variants. Signing in keeps the same free photo use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x, face enhance and priority, and raises logo requests to ${LIMITS.logoRequestsPremium} per day, and is sold through Paddle (see Pricing).` },
+  { q: "Is AI Studio really free?", a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x, face enhance and priority, and is sold through Paddle (see Pricing).` },
   { q: "What happens to my uploaded photos?", a: "Files are processed on our server and deleted immediately after processing (max 60 minutes in any case). We never list, share or train on them." },
   { q: "Can I use a generated logo for my business?", a: "Yes. Logos are generated as original geometry from your description. Prompts that reference existing brands, characters or public figures are refused, so the result is yours to use. For trademark registration, get independent legal advice." },
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },
@@ -137,7 +136,7 @@ export default function Home() {
       <section aria-labelledby="premium-heading" className="mt-12 border-2 border-accent bg-white p-6 dark:bg-slate-900">
         <h2 id="premium-heading" className="font-display text-3xl font-bold italic">Premium plan</h2>
         <p className="mt-2 max-w-xl text-muted-fg dark:text-slate-300">
-          {LIMITS.logoRequestsPremium} logo requests per day, unlimited
+          Unlimited logo requests, unlimited
           photo enhance / colorize / restore via the free routes, fast
           paid-GPU photo processing, HD 4x export up to 4096px, face enhance, priority generation, and no ads. Premium is
           sold through Paddle — checkout is handled by Paddle as merchant of record, and no card
