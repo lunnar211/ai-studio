@@ -1,15 +1,19 @@
 // Photo Enhance (Enhance-only mode) through the Phase 0 router.
 //
-// Replicate Real-ESRGAN first when configured and under the spend cap,
-// Sharp fallback otherwise. The response header X-Engine says honestly
-// which one ran: "ai" or "sharp". Credits: Enhance costs 1 photo
-// credit (see lib/limits.ts). Signed-in budgets come from AiUsageLog;
-// guests consume the per-IP bucket. Job rows are kept for history and
-// as the pre-schema-push fallback count.
+// AI-first: the image provider runs first when configured and under
+// the spend cap; the local Sharp pipeline runs ONLY if every
+// image-provider call fails. The client sees ONLY the neutral quality
+// badge (X-Quality: "ai" = AI Enhanced, "standard" = Standard) —
+// never which engine, provider, or model ran, and never any env var
+// name (P0 fix for the leaked "set REPLICATE_API_TOKEN" label).
+// Credits: Enhance costs 1 photo credit (see lib/limits.ts).
+// Signed-in budgets come from AiUsageLog; guests consume the
+// per-IP bucket. Job rows are kept for history and as the
+// pre-schema-push fallback count.
 
 import { NextResponse } from "next/server";
 import { detectImageKind } from "@/lib/file-validate";
-import { getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
+import { checkMinuteRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getSessionSafe } from "@/lib/auth";
 import { getSetting, isIpBlocked, logJob } from "@/lib/settings";
@@ -34,6 +38,10 @@ export async function POST(req: Request) {
   const ip = getClientIp(req);
   if (await isIpBlocked(ip)) {
     return NextResponse.json({ error: "Access from this network is blocked." }, { status: 403 });
+  }
+  const minute = await checkMinuteRateLimit(ip, "photo-enhance", 5);
+  if (!minute.ok) {
+    return NextResponse.json({ error: "Too many requests. Please wait a minute and try again." }, { status: 429 });
   }
 
   // Credit check (1 credit for Enhance). Signed-in users draw from the
@@ -96,13 +104,16 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "image/png",
         "Cache-Control": "no-store",
-        "X-Engine": result.engine,
+        // Neutral quality badge ONLY (P0): "ai" or "standard".
+        "X-Quality": result.engine === "ai" ? "ai" : "standard",
         "X-Output-Width": String(result.width),
         "X-Output-Height": String(result.height),
         ...rateLimitHeaders(rl.remaining, rl.limit),
       },
     });
-  } catch {
+  } catch (err) {
+    // Server log only — the client gets a generic message.
+    console.error("api/enhance: enhancement failed", err);
     await logJob({ userId, tool: "enhance", status: "FAILED", inputSummary: "enhance", errorCode: "ENHANCE_FAILED" });
     return NextResponse.json({ error: "Could not enhance that image. Please try another file." }, { status: 400 });
   }

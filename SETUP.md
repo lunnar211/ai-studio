@@ -62,7 +62,11 @@ from chat:
 | `HF_SPACE_ID` | Your Space id, e.g. `your-username/ai-studio-colorize`. |
 | `HF_SPACE_API_NAME` | Only if the "Use via API" name is not `/predict`. |
 | `HF_SPACE_HOST` | Only if the Space host differs from `owner-repo.hf.space`. |
-| `REPLICATE_API_TOKEN` | Replicate dashboard (Tier C). Needed for Premium-first colorize and all HD upscaling. |
+| `REPLICATE_API_TOKEN` | Replicate dashboard (Tier C). Legacy single key — still works; it is appended to the pool automatically. |
+| `AI_API_KEYS` | Replicate dashboard (Tier C). Comma-separated IMAGE-provider keys (Replicate tokens first). The pool rotates round-robin and fails over on 429/401/402/5xx. Never put LLM/text keys here. |
+| `REPLICATE_COLORIZE_MODEL` (+ optional `_VERSION`) | Replicate model slug for colorize, e.g. `piddnad/ddcolor`. Empty = colorize via Space/browser only. |
+| `REPLICATE_UPSCALE_MODEL` (+ optional `_VERSION`) | Replicate model slug for upscale, e.g. `nightmareai/real-esrgan`. Empty = Sharp fallback only. |
+| `REPLICATE_RESTORE_MODEL` (+ optional `_VERSION`) | Replicate model slug for restore, e.g. `tencentarc/gfpgan`. Empty = restore step skipped with an honest notice. |
 | `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `ELEVENLABS_API_KEY` | Each provider's dashboard (Phase 0 adapters; paste + redeploy to activate). |
 | `GROQ_API_KEY` | Already set in Production (logo + STT). Do not overwrite. |
 

@@ -1,47 +1,52 @@
 // Replicate adapter: async predictions for image models.
 //
-// Verified facts (2026-11-01):
-// - piddnad/ddcolor EXISTS on Replicate (model page live). Its Cog
-//   interface takes `image` (required) + `model_size` ("large"/"tiny",
-//   default "large"). The exact pinned version hash could not be
-//   fetched without an API token, so the code calls the unversioned
-//   model endpoint (same pattern the existing Real-ESRGAN code uses),
-//   which runs the model's current version. The owner can pin a version
-//   later via REPLICATE_COLORIZE_VERSION.
-// - nightmareai/real-esrgan (already in use) takes
-//   { image, scale, face_enhance } — face_enhance is the GFPGAN-based
-//   face path inside that model, so the "face enhance" toggle maps to
-//   it directly; no separate GFPGAN model is wired.
-// - The instruction-based "colour hints" model is NOT wired: no hint
-//   model has been verified or configured. It stays off until the owner
-//   sets REPLICATE_HINT_MODEL to a verified model slug.
+// Model slugs and version hashes come from ENV VARIABLES ONLY — never
+// hardcoded here (P0 fix). When a model env var is empty, that
+// capability is unconfigured and callers must fall back honestly.
+//   REPLICATE_COLORIZE_MODEL / _VERSION  (reference: DDColor-style colorizer)
+//   REPLICATE_UPSCALE_MODEL / _VERSION   (reference: Real-ESRGAN-style upscaler)
+//   REPLICATE_RESTORE_MODEL / _VERSION   (reference: GFPGAN-style face restore)
+// Keys come from the image pool (lib/ai-pool.ts): AI_API_KEYS
+// (comma-separated, round-robin + failover) with legacy
+// REPLICATE_API_TOKEN appended. This adapter never reads keys itself —
+// callers pass the key the pool selected, so failover actually rotates.
 // - SSRF guard: model outputs are fetched ONLY from replicate.delivery.
 // - Cost: Replicate bills per second of GPU time (Oct 2026 hardware
 //   rates: T4 $0.000225/s, L40S $0.000975/s, A100 $0.0014/s, H100
 //   $0.001525/s). Estimates here use the T4 rate against the
 //   prediction's own predict_time and are labelled estimates, because
 //   the API does not report which hardware ran the job.
+// - Error messages here are INTERNAL ONLY (server logs): routes map
+//   every failure to a generic user-facing message, so no provider
+//   name, model slug, or env var name ever reaches a client.
 
 import { AiError } from "../types";
 
 const BASE = "https://api.replicate.com/v1";
 
-export const REPLICATE_COLORIZE_MODEL =
-  process.env.REPLICATE_COLORIZE_MODEL || "piddnad/ddcolor";
-export const REPLICATE_UPSCALE_MODEL =
-  process.env.REPLICATE_UPSCALE_MODEL || "nightmareai/real-esrgan";
-export const REPLICATE_HINT_MODEL = process.env.REPLICATE_HINT_MODEL || "";
-export const REPLICATE_COLORIZE_VERSION = process.env.REPLICATE_COLORIZE_VERSION || "";
-export const REPLICATE_UPSCALE_VERSION = process.env.REPLICATE_UPSCALE_VERSION || "";
+/** Model slugs from env only — "" means that capability is unconfigured. */
+export function colorizeModel(): string {
+  return (process.env.REPLICATE_COLORIZE_MODEL ?? "").trim();
+}
+export function upscaleModel(): string {
+  return (process.env.REPLICATE_UPSCALE_MODEL ?? "").trim();
+}
+export function restoreModel(): string {
+  return (process.env.REPLICATE_RESTORE_MODEL ?? "").trim();
+}
+export function colorizeVersion(): string {
+  return (process.env.REPLICATE_COLORIZE_VERSION ?? "").trim();
+}
+export function upscaleVersion(): string {
+  return (process.env.REPLICATE_UPSCALE_VERSION ?? "").trim();
+}
+export function restoreVersion(): string {
+  return (process.env.REPLICATE_RESTORE_VERSION ?? "").trim();
+}
 
 /** T4 hardware rate, $/second — used ONLY for cost estimates. */
 export const REPLICATE_T4_RATE_PER_SECOND = 0.000225;
 
-function token(): string {
-  const t = process.env.REPLICATE_API_TOKEN;
-  if (!t) throw new AiError("AI_NOT_CONFIGURED", "Replicate is not configured.", 503);
-  return t;
-}
 
 export interface ReplicatePrediction {
   id: string;
@@ -57,45 +62,60 @@ function modelEndpoint(model: string, version: string): string {
 }
 
 /** Start an async prediction. Returns the prediction id immediately. */
-export async function replicateStart(opts: {
-  model: string;
-  version?: string;
-  input: Record<string, unknown>;
-}): Promise<string> {
+export async function replicateStart(
+  opts: {
+    model: string;
+    version?: string;
+    input: Record<string, unknown>;
+  },
+  key: string
+): Promise<string> {
   const res = await fetch(modelEndpoint(opts.model, opts.version ?? ""), {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token()}`,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ input: opts.input }),
     signal: AbortSignal.timeout(30000),
   }).catch(() => null);
-  if (!res) throw new AiError("REPLICATE_FAILED", "Could not reach Replicate.", 502);
+  if (!res) throw new AiError("REPLICATE_FAILED", "Could not reach the image service.", 502);
   if (res.status === 429) {
-    throw new AiError("REPLICATE_RATE_LIMITED", "Replicate is rate limited right now. Please try again shortly.", 429, true);
+    throw new AiError("REPLICATE_RATE_LIMITED", "The image service is rate limited right now.", 429, true);
+  }
+  if (res.status === 401 || res.status === 402) {
+    throw new AiError("REPLICATE_AUTH", "The image service rejected the request.", res.status);
+  }
+  if (res.status === 404) {
+    throw new AiError("REPLICATE_NOT_FOUND", "The image service could not find that job.", 404);
   }
   if (!res.ok) {
-    throw new AiError("REPLICATE_FAILED", "Replicate could not start that job.", 502);
+    throw new AiError("REPLICATE_FAILED", "The image service could not start that job.", 502);
   }
   const data = (await res.json().catch(() => null)) as { id?: string } | null;
-  if (!data?.id) throw new AiError("REPLICATE_FAILED", "Replicate did not return a job id.", 502);
+  if (!data?.id) throw new AiError("REPLICATE_FAILED", "The image service did not return a job id.", 502);
   return data.id;
 }
 
 /** Check a prediction's status (fast, no output download). */
-export async function replicateGet(predictionId: string): Promise<ReplicatePrediction> {
+export async function replicateGet(predictionId: string, key: string): Promise<ReplicatePrediction> {
   const res = await fetch(`${BASE}/predictions/${predictionId}`, {
-    headers: { Authorization: `Bearer ${token()}` },
+    headers: { Authorization: `Bearer ${key}` },
     signal: AbortSignal.timeout(15000),
   }).catch(() => null);
-  if (!res) throw new AiError("REPLICATE_FAILED", "Could not reach Replicate.", 502);
+  if (!res) throw new AiError("REPLICATE_FAILED", "Could not reach the image service.", 502);
   if (res.status === 429) {
-    throw new AiError("REPLICATE_RATE_LIMITED", "Replicate is rate limited right now.", 429, true);
+    throw new AiError("REPLICATE_RATE_LIMITED", "The image service is rate limited right now.", 429, true);
   }
-  if (!res.ok) throw new AiError("REPLICATE_FAILED", "Replicate job lookup failed.", 502);
+  if (res.status === 401 || res.status === 402) {
+    throw new AiError("REPLICATE_AUTH", "The image service rejected the request.", res.status);
+  }
+  if (res.status === 404) {
+    throw new AiError("REPLICATE_NOT_FOUND", "The image service could not find that job.", 404);
+  }
+  if (!res.ok) throw new AiError("REPLICATE_FAILED", "The image service job lookup failed.", 502);
   const data = (await res.json().catch(() => null)) as ReplicatePrediction | null;
-  if (!data?.id) throw new AiError("REPLICATE_FAILED", "Replicate returned an unknown job.", 502);
+  if (!data?.id) throw new AiError("REPLICATE_FAILED", "The image service returned an unknown job.", 502);
   return data;
 }
 
@@ -118,10 +138,10 @@ export async function replicateFetchOutput(url: string): Promise<Buffer> {
     parsed.protocol !== "https:" ||
     (parsed.hostname !== "replicate.delivery" && !parsed.hostname.endsWith(".replicate.delivery"))
   ) {
-    throw new AiError("REPLICATE_BAD_OUTPUT", "Replicate returned an output from an unexpected host.", 502);
+    throw new AiError("REPLICATE_BAD_OUTPUT", "The image service returned an output from an unexpected host.", 502);
   }
   const res = await fetch(url, { signal: AbortSignal.timeout(60000) }).catch(() => null);
-  if (!res || !res.ok) throw new AiError("REPLICATE_FAILED", "Could not download the Replicate result.", 502);
+  if (!res || !res.ok) throw new AiError("REPLICATE_FAILED", "Could not download the image service result.", 502);
   return Buffer.from(await res.arrayBuffer());
 }
 

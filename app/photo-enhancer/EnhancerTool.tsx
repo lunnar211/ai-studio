@@ -16,11 +16,11 @@ import {
 const MAX_BYTES = 10 * 1024 * 1024;
 const POLL_MS = 2500;
 
-type Mode = "enhance" | "colorize" | "colorize-hd" | "restore";
+type Mode = "enhance" | "colorize" | "restore";
 type Caps = {
   colorize: boolean;
   colorizeBlockedReason: string | null;
-  spaceConfigured?: boolean;
+  serverColorize?: boolean;
   browserColorize?: boolean;
   upscaleAi: boolean;
   photoCreditsFree: number;
@@ -38,9 +38,8 @@ type JobState = {
   stage: string;
   mode: Mode;
   credits: number;
-  engine?: string | null;
-  provider?: string | null;
-  model?: string | null;
+  quality?: "ai" | "standard" | null;
+  message?: string;
   resultData?: string;
   resultMime?: string;
   resultWidth?: number;
@@ -52,14 +51,14 @@ type JobState = {
 };
 
 const MODE_CARDS: Array<{ value: Mode; title: string; desc: string }> = [
-  { value: "enhance", title: "Enhance only", desc: "Sharper, larger version of your photo. Works on any photo." },
-  { value: "colorize", title: "Colorize black & white photo", desc: "Adds estimated colours to a black & white photo, same size." },
-  { value: "colorize-hd", title: "Colorize + HD upscale", desc: "Colorize, then upscale for large prints and screens." },
-  { value: "restore", title: "Restore old photo", desc: "Denoise, clean up and upscale. Black & white photos are colorized too." },
+  { value: "enhance", title: "Enhance", desc: "Sharper, larger version of your photo. Works on any photo." },
+  { value: "colorize", title: "Colorize", desc: "Adds estimated colours to a black & white photo, then upscales it." },
+  { value: "restore", title: "Restore + Colorize", desc: "Repairs faces and scratches first, then colorizes (black & white) and upscales." },
 ];
 
 const STAGE_LABELS: Record<string, string> = {
   queued: "Queued…",
+  restoring: "Restoring…",
   colorizing: "Colorizing…",
   upscaling: "Upscaling…",
   finalising: "Finalising…",
@@ -122,7 +121,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   const [beforeUrl, setBeforeUrl] = useState("");
   const [afterUrl, setAfterUrl] = useState("");
   const [afterName, setAfterName] = useState("enhanced.png");
-  const [engine, setEngine] = useState("");
+  const [quality, setQuality] = useState<"ai" | "standard" | null>(null);
   const [outSize, setOutSize] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
   const [slider, setSlider] = useState(50);
@@ -148,7 +147,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   // Async job state.
   const [job, setJob] = useState<JobState | null>(null);
   const [jobStage, setJobStage] = useState<string | null>(null);
-  const [resultMeta, setResultMeta] = useState<{ engine: string; provider: string; model: string; deliveredAs?: string | null; note?: string } | null>(null);
+  const [resultMeta, setResultMeta] = useState<{ quality: "ai" | "standard" | null; deliveredAs?: string | null; note?: string; browser?: boolean } | null>(null);
   // Browser (Tier A) colorize state.
   const [browserSupported, setBrowserSupported] = useState(false);
   const [browserProgress, setBrowserProgress] = useState("");
@@ -158,7 +157,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   const jobCancelled = useRef(false);
 
   const isPremium = caps?.plan === "PREMIUM";
-  const cost = caps?.photoCreditCost?.[mode] ?? (mode === "enhance" ? 1 : mode === "colorize-hd" ? 3 : 2);
+  const cost = caps?.photoCreditCost?.[mode] ?? (mode === "enhance" ? 1 : mode === "colorize" ? 2 : 3);
   const colorizeAvailable = caps?.colorize ?? true;
   const colorizeBlockedReason = caps?.colorizeBlockedReason ?? null;
 
@@ -219,13 +218,11 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         setAfterName(`${st.mode === "restore" ? "restored" : "colorized"}.${ext}`);
         setOutSize(st.resultWidth && st.resultHeight ? `${st.resultWidth} × ${st.resultHeight}px` : "");
         setResultMeta({
-          engine: st.engine ?? "",
-          provider: st.provider ?? "",
-          model: st.model ?? "",
+          quality: st.quality ?? null,
           deliveredAs: st.deliveredAs,
           note: st.note,
         });
-        setEngine(st.engine ?? "");
+        setQuality(st.quality ?? null);
         trackEvent("photo_result");
         setJobStage("done");
         setLoading(false);
@@ -246,7 +243,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         window.localStorage.removeItem("photo-job-id");
         return;
       }
-      setJobStage(st.stage === "colorizing" ? "colorizing" : st.stage === "upscaling" ? "upscaling" : "queued");
+      setJobStage(st.stage === "restoring" ? "restoring" : st.stage === "colorizing" ? "colorizing" : st.stage === "upscaling" ? "upscaling" : "queued");
       pollTimer.current = setTimeout(() => pollJob(jobId), POLL_MS);
     } catch {
       // Transient poll error: retry once more on the next tick.
@@ -263,7 +260,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
     setBrowserProgress("");
     setSuggestEnhance(false);
     setAfterUrl("");
-    setEngine("");
+    setQuality(null);
     setResultMeta(null);
     setJob(null);
     setJobStage(null);
@@ -303,10 +300,10 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       setLoading(false);
       setProgress(null);
       if (xhr.status === 200) {
-        const eng = xhr.getResponseHeader("X-Engine") || "";
+        const eng = xhr.getResponseHeader("X-Quality") || "";
         const w = xhr.getResponseHeader("X-Output-Width") || "";
         const h = xhr.getResponseHeader("X-Output-Height") || "";
-        setEngine(eng);
+        setQuality(eng === "ai" ? "ai" : "standard");
         setOutSize(w && h ? `${w} × ${h}px` : "");
         setAfterName("enhanced.png");
         setAfterUrl(URL.createObjectURL(xhr.response as Blob));
@@ -425,19 +422,18 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
       setAfterUrl(URL.createObjectURL(result.blob));
       setAfterName("colorized.png");
       setOutSize(`${result.width} × ${result.height}px`);
-      setEngine(result.engine);
+      setQuality("ai");
       setResultMeta({
-        engine: result.engine,
-        provider: result.provider,
-        model: result.model,
-        note: "Colorized entirely in your browser — your photo never left this device. Output is capped at 2048px on this path.",
+        quality: "ai",
+        note: "Colorized on your device — your photo never left this device. Output is capped at 2048px on this path.",
+        browser: true,
       });
       setLoading(false);
       setBrowserProgress("");
     } catch {
       setLoading(false);
       setBrowserProgress("");
-      setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it). Try server colorize instead — it uses 2 credits.");
+      setError("Browser colorize failed on this device (the model may not have downloaded, or this browser may not support it). Try server colorize instead.");
     }
   }
 
@@ -488,21 +484,19 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
 
   const isColorizeMode = mode !== "enhance";
   const isColorizeResult = resultMeta !== null && mode !== "enhance";
-  const engineLabel =
-    engine === "ai"
-      ? "AI enhanced"
-      : engine === "sharp"
-        ? "Enhanced (standard quality — set REPLICATE_API_TOKEN for AI upscaling)"
-        : engine
-          ? engine
-          : "";
-  const showGrayscaleWarn = isColorizeMode && (mode === "colorize" || mode === "colorize-hd") && grayKind === "color";
+  const qualityLabel =
+    quality === "ai"
+      ? "Quality: AI Enhanced"
+      : quality === "standard"
+        ? "Quality: Standard"
+        : "";
+  const showGrayscaleWarn = isColorizeMode && mode === "colorize" && grayKind === "color";
   const showGrayscaleSuggest = mode === "enhance" && grayKind === "grayscale";
   const restoreNote =
     mode === "restore" && grayKind === "grayscale"
-      ? "This looks black & white, so Restore will also colorize it."
+      ? "This looks black & white, so Restore will repair it, then colorize it."
       : mode === "restore" && grayKind === "color"
-        ? "This looks like a colour photo, so Restore will denoise and upscale it without colorizing."
+        ? "This looks like a colour photo, so Restore will repair and upscale it without colorizing."
         : null;
   const runDisabled =
     !file ||
@@ -549,7 +543,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                 </span>
                 <span className="text-sm text-muted-fg dark:text-slate-400">{c.desc}</span>
                 <span className="text-sm font-medium">
-                  {caps?.photoCreditCost?.[c.value] ?? (c.value === "enhance" ? 1 : c.value === "colorize-hd" ? 3 : 2)} credit{(caps?.photoCreditCost?.[c.value] ?? 1) === 1 ? "" : "s"}
+                  {caps?.photoCreditCost?.[c.value] ?? (c.value === "enhance" ? 1 : c.value === "colorize" ? 2 : 3)} credit{(caps?.photoCreditCost?.[c.value] ?? 1) === 1 ? "" : "s"}
                 </span>
               </label>
             ))}
@@ -619,7 +613,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                     <input type="checkbox" checked={faceEnhance} disabled={!isPremium} onChange={(e) => setFaceEnhance(e.target.checked)} className="h-5 w-5" />
                     <span>Face enhance {!isPremium && "(Premium only)"}</span>
                   </label>
-                  <p className="text-sm text-muted-fg dark:text-slate-400">Sharpens faces during upscaling. Only used on Colorize + HD and Restore.</p>
+                  <p className="text-sm text-muted-fg dark:text-slate-400">Sharpens faces during upscaling. Only used on Colorize and Restore + Colorize.</p>
                 </div>
               </div>
             )}
@@ -665,7 +659,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         )}
         {restoreNote && <div className="mt-3"><Alert kind="info">{restoreNote}</Alert></div>}
         {isColorizeMode && !colorizeAvailable && (
-          <div className="mt-3"><Alert kind="error">Colorize is unavailable right now{colorizeBlockedReason ? `: ${colorizeBlockedReason}` : "."} Enhance only still works.</Alert></div>
+          <div className="mt-3"><Alert kind="error">{colorizeBlockedReason ?? "Colorize is unavailable right now."} Enhance only still works.</Alert></div>
         )}
 
         <div className="mt-4"><TurnstileWidget onToken={setToken} /></div>
@@ -689,10 +683,9 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
             <p className="font-semibold">{STAGE_LABELS[jobStage] ?? jobStage}</p>
             <p className="text-sm text-muted-fg dark:text-slate-400">
               {jobStage === "queued" && "Your job is queued. You can leave this page — the job link is saved and you can come back to it."}
-              {jobStage === "colorizing" && (job?.provider === "huggingface"
-                ? "Colorizing on your private Space. The first run can take a few minutes while the Space wakes up — you can leave this page and come back with the saved job link."
-                : "The AI model is estimating colours. This usually takes under a minute.")}
-              {jobStage === "upscaling" && "Upscaling the colorized photo for a sharper result."}
+              {jobStage === "restoring" && "Repairing faces and scratches. This usually takes under a minute."}
+              {jobStage === "colorizing" && "The AI model is estimating colours. This usually takes under a minute. If the image service is waking up, it can take a few minutes — you can leave this page and come back with the saved job link."}
+              {jobStage === "upscaling" && "Upscaling the photo for a sharper result."}
               {jobStage === "finalising" && "Preparing your download…"}
             </p>
             <div className="mt-2 flex gap-2">
@@ -725,9 +718,9 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                   {loading ? "Working…" : "Colorize in browser — free"}
                 </Button>
                 <Button type="button" variant="outline" onClick={startColorizeJob} disabled={runDisabled}>
-                  Use server colorize (2 credits)
+                  Use server colorize ({cost} credits)
                 </Button>
-                <span className="text-sm text-muted-fg dark:text-slate-400">Browser colorize is unlimited and your photo never leaves this device. Server colorize uses the stronger DDColor model.</span>
+                <span className="text-sm text-muted-fg dark:text-slate-400">Browser colorize is unlimited and your photo never leaves this device. Server colorize uses a stronger model and costs credits.</span>
               </>
             ) : (
               <>
@@ -744,20 +737,19 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         ) : (
           <Button type="button" onClick={run} disabled={runDisabled} className="mt-3 w-full sm:w-auto">
             {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
-            {loading ? (isColorizeMode ? "Working…" : "Enhancing…") : mode === "enhance" ? "Enhance photo" : mode === "colorize" ? "Colorize photo" : mode === "colorize-hd" ? "Colorize + upscale" : "Restore photo"}
+            {loading ? (isColorizeMode ? "Working…" : "Enhancing…") : mode === "enhance" ? "Enhance photo" : mode === "colorize" ? "Colorize photo" : "Restore photo"}
           </Button>
         )}
-        {engineLabel && !isColorizeResult && (
-          <div className="mt-4"><Alert kind={engine === "ai" ? "success" : "info"}>{engineLabel}{outSize ? ` — output ${outSize}.` : "."}</Alert></div>
+        {qualityLabel && !isColorizeResult && (
+          <div className="mt-4"><Alert kind={quality === "ai" ? "success" : "info"}>{qualityLabel}{outSize ? ` — Done. Output ${outSize}.` : "."}</Alert></div>
         )}
         {isColorizeResult && (
           <div className="mt-4 space-y-2">
-            <Alert kind="success">AI colorized: colours are estimated{outSize ? ` — output ${outSize}.` : "."}</Alert>
+            <Alert kind="success">AI colorized: colours are estimated{outSize ? ` — Done. Output ${outSize}.` : "."}</Alert>
+            {qualityLabel && <p className="text-sm font-semibold">{qualityLabel}</p>}
             <details className="border-2 border-line p-3 text-sm">
               <summary className="cursor-pointer font-semibold">Details: how this result was made</summary>
-              <p className="mt-2">Engine: {resultMeta?.engine}</p>
-              <p>Provider: {resultMeta?.provider}{resultMeta?.model ? ` (${resultMeta.model})` : ""}</p>
-              {resultMeta?.deliveredAs && <p>{resultMeta.deliveredAs}</p>}
+              {resultMeta?.deliveredAs && <p className="mt-2">{resultMeta.deliveredAs}</p>}
               {resultMeta?.note && <p>{resultMeta.note}</p>}
               <p>Colours are estimated by the AI model — they are not the original colours. The sharpness and detail come from your original photo.</p>
             </details>
@@ -765,8 +757,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
               <Button type="button" variant="secondary" onClick={() => { setAfterUrl(""); setResultMeta(null); setJob(null); setJobStage(null); }}>Try a different colour style</Button>
             </div>
             <p className="text-sm text-muted-fg dark:text-slate-400">
-              {resultMeta?.engine === "browser-ai-colorize"
-                ? "Change the intensity above and run again — no need to re-upload while this file is here. Browser colorize uses the model's natural colours (style and era apply to server colorize only)."
+              {resultMeta?.browser
+                ? "Change the intensity above and run again — no need to re-upload while this file is here. Browser colorize uses natural colours (style and era apply to server colorize only)."
                 : "Change the style, era or intensity above and run again — no need to re-upload while this file is here."}
             </p>
           </div>
@@ -781,7 +773,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
             <img src={beforeUrl} alt="Original photo before processing" className="max-h-[420px] w-full object-contain bg-cream dark:bg-slate-800" />
           </figure>
           <figure className="border-2 border-line bg-white p-4 dark:bg-slate-900">
-            <figcaption className="mb-2 font-semibold">After{engine ? ` — ${engine === "ai" ? "AI enhanced" : engine === "sharp" ? "standard quality" : engine}` : ""}</figcaption>
+            <figcaption className="mb-2 font-semibold">After{quality ? ` — Quality: ${quality === "ai" ? "AI Enhanced" : "Standard"}` : ""}</figcaption>
             {afterUrl ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

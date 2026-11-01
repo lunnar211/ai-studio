@@ -43,7 +43,7 @@ export default async function PricingPage() {
           <p className="mt-2 text-3xl font-bold">$0</p>
           <ul className="mt-4 list-disc space-y-2 pl-6">
             <li>{limits.logoRequestsFree} logo requests per day (each request gives 3 variants)</li>
-            <li>{limits.photoCreditsFree} photo credits per day — Enhance {cost.enhance}, Colorize or Restore {cost.restore}, Colorize + HD {cost["colorize-hd"]}</li>
+            <li>{limits.photoCreditsFree} photo credits per day — Enhance {cost.enhance}, Colorize {cost.colorize}, Restore + Colorize {cost.restore}</li>
             <li>Logo downloads: SVG and 1024px PNG</li>
             <li>Photo downloads: PNG, JPG, or WebP</li>
             <li>Free browser colorize (unlimited, photo stays on your device)</li>
@@ -110,8 +110,8 @@ export default async function PricingPage() {
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Logo requests per day</th><td className="p-3">{limits.logoRequestsFree} (3 variants each)</td><td className="p-3">{limits.logoRequestsPremium} (3 variants each)</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Photo credits per day</th><td className="p-3">{limits.photoCreditsFree}</td><td className="p-3">{limits.photoCreditsPremium}</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Enhance cost</th><td className="p-3">{cost.enhance} credit</td><td className="p-3">{cost.enhance} credit</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Colorize / Restore cost</th><td className="p-3">{cost.restore} credits</td><td className="p-3">{cost.restore} credits</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Colorize + HD cost</th><td className="p-3">{cost["colorize-hd"]} credits</td><td className="p-3">{cost["colorize-hd"]} credits</td></tr>
+              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Colorize cost</th><td className="p-3">{cost.colorize} credits</td><td className="p-3">{cost.colorize} credits</td></tr>
+              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Restore + Colorize cost</th><td className="p-3">{cost.restore} credits</td><td className="p-3">{cost.restore} credits</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">HD upscaling</th><td className="p-3">Up to 2x / 2048px</td><td className="p-3">Up to 4x / 4096px</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Face enhance</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Priority generation</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>

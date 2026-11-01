@@ -1,8 +1,7 @@
 // Public capability flags for the photo tools: booleans ONLY — never
-// a key, a model list, or anything that reveals configuration. The UI
-// uses these to show honest states (e.g. "Colorize is unavailable
-// right now" when Replicate is not configured, or when the PhotoJob
-// table has not been pushed yet) instead of dead buttons.
+// a key, a model list, a provider name, or anything that reveals
+// configuration (P0 fix). The UI uses these to show honest states
+// (e.g. "Colorize is unavailable right now") instead of dead buttons.
 //
 // Colorize additionally requires the PhotoJob table: async jobs have
 // nowhere to live without it, so the endpoint probes the table (one
@@ -11,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getSettings } from "@/lib/settings";
-import { providerEnabled, providerKeyPresent } from "@/lib/ai/registry";
+import { providerEnabled } from "@/lib/ai/registry";
 import { LIMITS } from "@/lib/limits";
 import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -32,10 +31,10 @@ async function photoJobTableReady(): Promise<boolean> {
 
 export async function GET() {
   const settings = await getSettings();
-  const replicateOn = providerEnabled("replicate", settings);
-  // Space kill-switch: the admin toggle disables it instantly without
-  // a redeploy (the registry's HF Inference adapter is separate and
-  // stays disabled).
+  const serverAiOn = providerEnabled("replicate", settings);
+  // Server colorize kill-switch: the admin toggle disables it
+  // instantly without a redeploy (the registry's HF Inference adapter
+  // is separate and stays disabled).
   const spaceOn = spaceConfigured() && settings["ai.provider.huggingface"] !== "false";
   const tableReady = await photoJobTableReady();
   const session = await getSessionSafe();
@@ -51,20 +50,15 @@ export async function GET() {
     remainingCredits = Math.max(0, budget - used);
   }
 
+  const serverColorize = (serverAiOn || spaceOn) && tableReady;
   return NextResponse.json({
-    colorize: (replicateOn || spaceOn) && tableReady,
-    colorizeBlockedReason: !(replicateOn || spaceOn)
-      ? "Neither the image model nor your private Space is configured."
-      : !tableReady
-        ? "Photo jobs need a one-time database setup that has not run yet."
-        : null,
-    spaceConfigured: spaceOn,
+    colorize: serverColorize,
+    // Generic reason only — never which tier is missing or why.
+    colorizeBlockedReason: !serverColorize ? "Colorize is unavailable right now." : null,
+    serverColorize,
     browserColorize: true,
-    upscaleAi: replicateOn,
+    upscaleAi: serverAiOn,
     upscaleLocal: true,
-    visionAnalysis: providerEnabled("gemini", settings) || providerEnabled("nvidia", settings),
-    moderationText: providerEnabled("nvidia", settings),
-    replicateConfigured: providerKeyPresent("replicate"),
     photoCreditsFree: LIMITS.photoCreditsFree,
     photoCreditsPremium: LIMITS.photoCreditsPremium,
     photoCreditCost: LIMITS.photoCreditCost,

@@ -15,18 +15,7 @@ import { openrouterChat } from "./adapters/openrouter";
 import { nvidiaAnalyzePhoto, nvidiaModerateText } from "./adapters/nvidia";
 import { elevenlabsSpeak } from "./adapters/elevenlabs";
 import { huggingfaceDisabled } from "./adapters/huggingface";
-import {
-  REPLICATE_COLORIZE_MODEL,
-  REPLICATE_COLORIZE_VERSION,
-  REPLICATE_UPSCALE_MODEL,
-  REPLICATE_UPSCALE_VERSION,
-  replicateCostEstimate,
-  replicateFetchOutput,
-  replicateGet,
-  replicateOutputUrl,
-  replicateStart,
-  type ReplicatePrediction,
-} from "./adapters/replicate";
+import { getImageProvider } from "../ai-pool";
 import { checkSpendCap } from "./usage";
 import { sharpEnhance } from "./adapters/sharp-local";
 import sharp from "sharp";
@@ -279,6 +268,11 @@ export interface UpscaleJob {
  * (when configured and under the spend cap), Sharp fallback otherwise.
  * The caller labels the result honestly from `engine`.
  */
+/** AI-first upscale (Enhance mode): the image provider runs first;
+ * the local Sharp pipeline runs ONLY if every image-provider call
+ * fails. The caller maps the internal engine to the neutral quality
+ * badge ("ai" -> AI Enhanced, "sharp" -> Standard) and never exposes
+ * the engine, provider, or model to the client. */
 export async function routeUpscale(opts: {
   image: Buffer;
   kind: string;
@@ -288,44 +282,35 @@ export async function routeUpscale(opts: {
   plan?: AiPlan;
 }): Promise<UpscaleJob> {
   const allSettings = await getSettings();
-  const replicateOn = providerEnabled("replicate", allSettings) && !isTripped("replicate");
-  if (replicateOn) {
+  const provider = getImageProvider();
+  const providerOn = provider !== null && provider.upscaleModel() !== "" && providerEnabled("replicate", allSettings) && !isTripped("replicate");
+  if (providerOn && provider) {
     const cap = await checkSpendCap();
     if (cap.ok) {
       try {
-        const mime = opts.kind === "png" ? "image/png" : opts.kind === "webp" ? "image/webp" : "image/jpeg";
-        const dataUri = `data:${mime};base64,${opts.image.toString("base64")}`;
         const started = Date.now();
-        const predId = await replicateStart({
-          model: REPLICATE_UPSCALE_MODEL,
-          version: REPLICATE_UPSCALE_VERSION,
-          input: {
-            image: dataUri,
-            scale: opts.scale ?? 2,
-            face_enhance: opts.faceEnhance ?? false,
-          },
-        });
+        const predId = await provider.startUpscale(opts.image, (opts.scale ?? 2) as 2 | 4, opts.faceEnhance ?? false);
         // Poll synchronously (existing enhance behaviour, 50s budget).
         const deadline = Date.now() + 50000;
-        let pred: ReplicatePrediction = await replicateGet(predId);
+        let pred = await provider.getPrediction(predId);
         while (pred.status === "starting" || pred.status === "processing") {
-          if (Date.now() > deadline) throw new AiError("REPLICATE_TIMEOUT", "Replicate took too long.", 502);
+          if (Date.now() > deadline) throw new AiError("REPLICATE_TIMEOUT", "The image service took too long.", 502);
           await new Promise((r) => setTimeout(r, 2500));
-          pred = await replicateGet(predId);
+          pred = await provider.getPrediction(predId);
         }
         if (pred.status === "succeeded") {
-          const url = replicateOutputUrl(pred);
+          const url = provider.outputUrl(pred);
           if (url) {
-            const buf = await replicateFetchOutput(url);
+            const buf = await provider.fetchOutput(url);
             const meta = await sharp(buf).metadata();
-            const cost = replicateCostEstimate(pred);
+            const cost = provider.costEstimate(pred);
             recordSuccess("replicate");
-            await log("replicate", REPLICATE_UPSCALE_MODEL, "image-upscale", Date.now() - started, true, cost, opts.userId, 1);
+            await log("replicate", provider.upscaleModel(), "image-upscale", Date.now() - started, true, cost, opts.userId, 1);
             return {
               engine: "ai",
               buffer: buf,
               provider: "replicate",
-              model: REPLICATE_UPSCALE_MODEL,
+              model: provider.upscaleModel(),
               width: meta.width ?? 0,
               height: meta.height ?? 0,
               costUsd: cost,
@@ -333,7 +318,7 @@ export async function routeUpscale(opts: {
           }
         }
         recordFailure("replicate", false);
-        await log("replicate", REPLICATE_UPSCALE_MODEL, "image-upscale", Date.now() - started, false, 0, opts.userId);
+        await log("replicate", provider.upscaleModel(), "image-upscale", Date.now() - started, false, 0, opts.userId);
       } catch (err) {
         if (err instanceof AiError) recordFailure("replicate", err.rateLimited);
         else recordFailure("replicate", false);
@@ -360,49 +345,41 @@ export async function routeUpscale(opts: {
   };
 }
 
-/** Start an async DDColor colorize prediction. Returns its id. */
+/** Start an async colorize prediction via the image pool. Returns its id. */
 export async function routeColorizeStart(opts: {
   image: Buffer;
   kind: string;
   userId?: string | null;
 }): Promise<{ predictionId: string }> {
   const allSettings = await getSettings();
-  if (!providerEnabled("replicate", allSettings) || isTripped("replicate")) {
+  const provider = getImageProvider();
+  if (!provider || provider.colorizeModel() === "" || !providerEnabled("replicate", allSettings) || isTripped("replicate")) {
     throw notConfiguredError("image-colorize");
   }
   const cap = await checkSpendCap();
   if (!cap.ok) {
     throw new AiError(
       "AI_BUDGET_REACHED",
-      `The daily AI budget ($${cap.cap}) is reached. Colorize will be available again tomorrow.`,
+      `The daily AI budget is reached. Colorize will be available again tomorrow.`,
       503
     );
   }
-  const mime = opts.kind === "png" ? "image/png" : opts.kind === "webp" ? "image/webp" : "image/jpeg";
-  const dataUri = `data:${mime};base64,${opts.image.toString("base64")}`;
   try {
-    const id = await replicateStart({
-      model: REPLICATE_COLORIZE_MODEL,
-      version: REPLICATE_COLORIZE_VERSION,
-      input: { image: dataUri, model_size: "large" },
-    });
+    const id = await provider.startColorize(opts.image);
     recordSuccess("replicate");
     return { predictionId: id };
   } catch (err) {
-    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "Replicate could not start colorize.", 502);
+    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start colorize.", 502);
     recordFailure("replicate", e.rateLimited);
     throw e;
   }
 }
 
-export { replicateGet, replicateOutputUrl, replicateFetchOutput, replicateCostEstimate };
-export type { ReplicatePrediction };
-
 /**
- * Start an async Real-ESRGAN upscale prediction (start-only, for the
- * photo-job state machine). Like routeColorizeStart, this does NOT
- * write a usage row — the caller logs once at completion with the real
- * outcome and the job's credit cost.
+ * Start an async upscale prediction (start-only, for the photo-job
+ * state machine). Like routeColorizeStart, this does NOT write a usage
+ * row — the caller logs once at completion with the real outcome and
+ * the job's credit cost.
  */
 export async function routeUpscaleStart(opts: {
   image: Buffer;
@@ -411,29 +388,59 @@ export async function routeUpscaleStart(opts: {
   faceEnhance?: boolean;
 }): Promise<{ predictionId: string }> {
   const allSettings = await getSettings();
-  if (!providerEnabled("replicate", allSettings) || isTripped("replicate")) {
+  const provider = getImageProvider();
+  if (!provider || provider.upscaleModel() === "" || !providerEnabled("replicate", allSettings) || isTripped("replicate")) {
     throw notConfiguredError("image-upscale");
   }
   const cap = await checkSpendCap();
   if (!cap.ok) {
     throw new AiError(
       "AI_BUDGET_REACHED",
-      `The daily AI budget ($${cap.cap}) is reached. Upscaling will be available again tomorrow.`,
+      `The daily AI budget is reached. Upscaling will be available again tomorrow.`,
       503
     );
   }
-  const mime = opts.kind === "png" ? "image/png" : opts.kind === "webp" ? "image/webp" : "image/jpeg";
-  const dataUri = `data:${mime};base64,${opts.image.toString("base64")}`;
   try {
-    const id = await replicateStart({
-      model: REPLICATE_UPSCALE_MODEL,
-      version: REPLICATE_UPSCALE_VERSION,
-      input: { image: dataUri, scale: opts.scale, face_enhance: opts.faceEnhance ?? false },
-    });
+    const id = await provider.startUpscale(opts.image, opts.scale, opts.faceEnhance ?? false);
     recordSuccess("replicate");
     return { predictionId: id };
   } catch (err) {
-    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "Replicate could not start upscale.", 502);
+    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start upscale.", 502);
+    recordFailure("replicate", e.rateLimited);
+    throw e;
+  }
+}
+
+/**
+ * Start an async face/scratch restore prediction (start-only, for the
+ * photo-job state machine). The restore step runs BEFORE colorizing
+ * in Restore + Colorize jobs. Unconfigured (no restore model or no
+ * key) => notConfiguredError, and the caller skips the restore step
+ * with an honest notice instead of faking it.
+ */
+export async function routeRestoreStart(opts: {
+  image: Buffer;
+  kind: string;
+}): Promise<{ predictionId: string }> {
+  const allSettings = await getSettings();
+  const provider = getImageProvider();
+  if (!provider || provider.restoreModel() === "" || !providerEnabled("replicate", allSettings) || isTripped("replicate")) {
+    throw notConfiguredError("image-colorize");
+  }
+  const cap = await checkSpendCap();
+  if (!cap.ok) {
+    throw new AiError(
+      "AI_BUDGET_REACHED",
+      `The daily AI budget is reached. Restoration will be available again tomorrow.`,
+      503
+    );
+  }
+  try {
+    const id = await provider.startRestore(opts.image);
+    recordSuccess("replicate");
+    return { predictionId: id };
+  } catch (err) {
+    const e = err instanceof AiError ? err : new AiError("REPLICATE_FAILED", "The image service could not start restoration.", 502);
     recordFailure("replicate", e.rateLimited);
     throw e;
   }

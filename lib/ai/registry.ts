@@ -105,6 +105,13 @@ export function providerKeyPresent(id: AiProviderId): boolean {
   const def = providerDef(id);
   if (!def) return false;
   if (def.id === "sharp") return true;
+  // Replicate's key is the IMAGE POOL (lib/ai-pool.ts): AI_API_KEYS
+  // (comma-separated) with legacy REPLICATE_API_TOKEN appended. The
+  // registry entry's envKey names the legacy var only, so check both.
+  if (def.id === "replicate") {
+    const pool = (process.env.AI_API_KEYS ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+    return pool.length > 0 || Boolean((process.env.REPLICATE_API_TOKEN ?? "").trim());
+  }
   return Boolean(def.envKey && process.env[def.envKey]);
 }
 

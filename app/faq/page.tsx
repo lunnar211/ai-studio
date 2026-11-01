@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: `Yes. The free tier gives you ${LIMITS.logoRequestsFree} logo requests and ${LIMITS.photoCreditsFree} photo credits per day, with no account and no payment details. One logo request gives 3 variants and uses 1 credit. Photo jobs cost ${LIMITS.photoCreditCost.enhance} credit for Enhance, ${LIMITS.photoCreditCost.restore} for Colorize or Restore, and ${LIMITS.photoCreditCost["colorize-hd"]} for Colorize + HD. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to ${LIMITS.logoRequestsPremium} logo requests and ${LIMITS.photoCreditsPremium} photo credits per day.`,
+    a: `Yes. The free tier gives you ${LIMITS.logoRequestsFree} logo requests and ${LIMITS.photoCreditsFree} photo credits per day, with no account and no payment details. One logo request gives 3 variants and uses 1 credit. Photo jobs cost ${LIMITS.photoCreditCost.enhance} credit for Enhance, ${LIMITS.photoCreditCost.colorize} for Colorize, and ${LIMITS.photoCreditCost.restore} for Restore + Colorize. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to ${LIMITS.logoRequestsPremium} logo requests and ${LIMITS.photoCreditsPremium} photo credits per day.`,
   },
   {
     q: "What do I get from the logo generator?",
@@ -30,11 +30,11 @@ const FAQS = [
   },
   {
     q: "How does the photo enhancer work?",
-    a: "Upload a JPG, PNG, or WebP image up to 10 MB. The server upscales and sharpens it; when a Replicate token is configured, AI upscaling (Real-ESRGAN) is used, otherwise a standard Sharp upscale is used — and the result is always labelled honestly. Colorize can also run free in your browser (DeOldify model, photo stays on your device) or on the owner's private Space. Download the result as PNG, JPG, or WebP, and drag the slider to compare before and after.",
+    a: "Upload a JPG, PNG, or WebP image up to 10 MB. Pick Enhance, Colorize, or Restore + Colorize. Colorize adds estimated colours and then upscales; Restore + Colorize repairs faces and scratches first. Colorize can also run free in your browser (photo stays on your device). Every result carries a quality badge — AI Enhanced or Standard — and colorized photos always say colours are estimated. Download the result as PNG, JPG, or WebP, and drag the slider to compare before and after.",
   },
   {
     q: "What happens to my photos and prompts?",
-    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case), except browser colorize, where the photo never leaves your device. We never list or share them. Prompts are sent to our AI providers (Groq first, with OpenRouter and Gemini as fallbacks) to produce logos; they are not used by us to train models. See the Privacy Policy for every provider and retention rule.",
+    a: "Files are processed on the server and deleted immediately after processing (max 60 minutes in any case), except browser colorize, where the photo never leaves your device. We never list or share them. Prompts are sent to our text-generation service to produce logos; they are not used by us to train models. See the Privacy Policy for the full list of services that can receive data and their retention rules.",
   },
   {
     q: "How do I pay for Premium?",

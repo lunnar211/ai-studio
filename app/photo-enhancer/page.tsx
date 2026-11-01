@@ -31,7 +31,7 @@ const faqLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   mainEntity: [
-    { "@type": "Question", name: "What is the difference between AI and standard quality?", acceptedAnswer: { "@type": "Answer", text: "AI quality uses a neural upscaler when configured. Standard quality uses sharpening and upscaling without AI, and is labelled as such." } },
+    { "@type": "Question", name: "What is the difference between AI and standard quality?", acceptedAnswer: { "@type": "Answer", text: "Every result carries a quality badge: AI Enhanced means an AI model processed the photo; Standard means a standard sharpening pipeline ran on our own server. The badge always says which one you got." } },
     { "@type": "Question", name: "What file types and sizes are accepted?", acceptedAnswer: { "@type": "Answer", text: "JPG, PNG and WebP images up to 10 MB, verified by file content, not just the file name." } },
     { "@type": "Question", name: "Are my photos kept or shared?", acceptedAnswer: { "@type": "Answer", text: "No. Files are processed on our server and deleted immediately after processing, and are never listed or shared." } },
   ],
@@ -45,7 +45,7 @@ export default async function EnhancerPage({
   const params = await searchParams;
   const rawMode = typeof params.mode === "string" ? params.mode : "";
   const initialMode =
-    rawMode === "colorize" || rawMode === "colorize-hd" || rawMode === "restore" ? rawMode : undefined;
+    rawMode === "colorize" || rawMode === "restore" ? rawMode : undefined;
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -59,7 +59,7 @@ export default async function EnhancerPage({
       </p>
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
         <strong>AI disclosure:</strong> when AI upscaling or colorizing is available, your image is
-        sent to the Replicate API for processing and the result is labelled AI-generated — colorize
+        sent to our image-processing service for processing and the result is labelled AI-generated — colorize
         results always carry “AI colorized: colours are estimated”, because the colours are the
         model&apos;s estimate, not the original colours. Otherwise a standard sharpening pipeline runs
         on our own server and is labelled standard quality, never AI. Uploads are deleted after
@@ -89,7 +89,7 @@ export default async function EnhancerPage({
       <section aria-labelledby="faq-enhance" className="mt-8">
         <h2 id="faq-enhance" className="font-display text-2xl font-bold italic">Questions</h2>
         <div className="mt-4 space-y-4">
-          <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">What is the difference between AI and standard quality?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">AI quality uses a neural upscaler when it is configured and available. Standard quality sharpens and upscales without AI. The label on your result always says which one you got.</p></div>
+          <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">What is the difference between AI and standard quality?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">Every result carries a quality badge: AI Enhanced means an AI model processed the photo; Standard means a standard sharpening pipeline ran on our own server. The badge always says which one you got.</p></div>
           <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">What files are accepted?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">JPG, PNG and WebP up to 10 MB. The file content is checked, not just the extension.</p></div>
           <div className="border-2 border-line bg-white p-5 dark:bg-slate-900"><h3 className="font-bold">Are my photos kept?</h3><p className="mt-1 text-muted-fg dark:text-slate-300">No. They are processed and deleted immediately after processing, and never listed or shared.</p></div>
         </div>

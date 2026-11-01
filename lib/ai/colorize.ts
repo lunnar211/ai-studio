@@ -65,6 +65,31 @@ export async function normalizeUpload(input: Buffer): Promise<{
   return { buffer, width: outMeta.width ?? meta.width ?? 0, height: outMeta.height ?? meta.height ?? 0 };
 }
 
+/**
+ * Prepare an AI-model input (P0 speed rule): normalize, then resize
+ * with Sharp to max 1536px on the longest edge BEFORE sending to any
+ * AI model. Large scans are slow and expensive at full size, and the
+ * model output is LAB-merged onto this resized original and then
+ * upscaled to the plan cap — so no detail is lost that the pipeline
+ * would have kept. Tiling is NOT used: the wired models expose no
+ * tiling parameter, so downscaling (not tiling) is the honest way to
+ * keep jobs fast. The Enhance-only Sharp path does not use this: it
+ * works on the full image.
+ */
+export async function prepareAiInput(input: Buffer): Promise<{
+  buffer: Buffer;
+  width: number;
+  height: number;
+}> {
+  const normalized = await normalizeUpload(input);
+  const resized = await sharp(normalized.buffer)
+    .resize(1536, 1536, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 92 })
+    .toBuffer();
+  const meta = await sharp(resized).metadata();
+  return { buffer: resized, width: meta.width ?? normalized.width, height: meta.height ?? normalized.height };
+}
+
 /** Decode any image buffer to raw RGB + dimensions. */
 export async function decodeRgb(input: Buffer): Promise<{
   data: Buffer;

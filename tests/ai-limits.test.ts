@@ -13,11 +13,12 @@ describe("single limits config", () => {
     expect(LIMITS.logoRequestsFree).toBe(10);
     expect(LIMITS.logoRequestsPremium).toBe(100);
   });
-  it("defines the documented photo credit costs", () => {
+  it("defines the documented photo credit costs (P0: exactly 3 modes)", () => {
     expect(LIMITS.photoCreditCost.enhance).toBe(1);
     expect(LIMITS.photoCreditCost.colorize).toBe(2);
-    expect(LIMITS.photoCreditCost.restore).toBe(2);
-    expect(LIMITS.photoCreditCost["colorize-hd"]).toBe(3);
+    expect(LIMITS.photoCreditCost.restore).toBe(3);
+    expect(Object.keys(LIMITS.photoCreditCost).sort()).toEqual(["colorize", "enhance", "restore"]);
+    expect(LIMITS.photoModeLabel.restore).toBe("Restore + Colorize");
     // The credits module must not define its own numbers.
     expect(PHOTO_CREDIT_COST).toBe(LIMITS.photoCreditCost);
   });

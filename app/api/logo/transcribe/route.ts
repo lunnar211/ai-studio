@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     if (!text) {
       return NextResponse.json({ error: "No speech was detected. Please record again or type your prompt." }, { status: 400 });
     }
-    return NextResponse.json({ text, provider: result.provider, model: result.model });
+    return NextResponse.json({ text });
   } catch (err) {
     const e = err as AiError;
     if (e?.code === "AI_NOT_CONFIGURED") {

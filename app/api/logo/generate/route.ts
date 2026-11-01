@@ -10,7 +10,6 @@ import { logoRequestBudgetFor } from "@/lib/limits";
 import { prisma } from "@/lib/prisma";
 import {
   LOGO_MODEL_FALLBACK,
-  LOGO_MODEL_PRIMARY,
   buildLogoSystemPrompt,
   cleanPrompt,
   isRefusal,
@@ -141,11 +140,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Verification failed. Please try again." }, { status: 400 });
   }
 
-  // Any configured text provider can serve logos (Groq first via the
-  // router). With no provider key at all, say so honestly.
+  // Any configured text provider can serve logos. With no provider key
+  // at all, say so generically (P0: no env var names in responses).
   if (!(await anyProviderEnabled("text"))) {
     return NextResponse.json(
-      { error: "AI logo generation is not configured yet. The site owner needs to add a text provider key (for example GROQ_API_KEY) in Vercel and redeploy." },
+      { error: "AI logo generation is unavailable right now. Please try again later." },
       { status: 503, headers: rateLimitHeaders(rl.remaining, rl.limit) }
     );
   }
@@ -157,7 +156,6 @@ export async function POST(req: Request) {
   // is surfaced honestly instead of crashing or faking output.
   const system = buildLogoSystemPrompt(style, colors, brandName);
   const variants: string[] = [];
-  const variantProviders: string[] = [];
   let sawRefusal = false;
   let sawRateLimit = false;
   const round1 = await Promise.all([
@@ -168,7 +166,6 @@ export async function POST(req: Request) {
   for (const r of round1) {
     if (r.svg) {
       variants.push(r.svg);
-      if (r.provider) variantProviders.push(r.provider);
     }
     if (r.refused) sawRefusal = true;
     if (r.rateLimited) sawRateLimit = true;
@@ -187,7 +184,6 @@ export async function POST(req: Request) {
     for (const r of round2) {
       if (r.svg) {
         variants.push(r.svg);
-        if (r.provider) variantProviders.push(r.provider);
       }
       if (r.refused) sawRefusal = true;
       if (r.rateLimited) sawRateLimit = true;
@@ -239,10 +235,6 @@ export async function POST(req: Request) {
       svg: variants[0],
       remaining: rl.remaining,
       limit: rl.limit,
-      model: LOGO_MODEL_PRIMARY,
-      // Providers that actually produced variants (for the Details line
-      // in the UI — the honest provenance of each result).
-      providers: [...new Set(variantProviders)],
     },
     { headers: rateLimitHeaders(rl.remaining, rl.limit) }
   );
