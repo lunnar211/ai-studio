@@ -55,6 +55,30 @@
   sepia mix, multi-hue colour, dark-pixel guard, 0.34/0.36
   boundary, RGB buffers).
 
+## 2026-11-01 — sepia photos colorized with purple/blue blotches (same day, master)
+
+- THE SECOND "STILL ERROR": the sepia-detection gate was fixed
+  (live re-test offered "Colorize free in browser" and finished),
+  but the result was NOT natural colour — subjects stayed
+  sepia/grey with vivid purple/blue blotches at the edges.
+- ROOT CAUSE, PROVEN WITH THE SAME MODEL: the browser pipeline
+  fed the sepia photo straight to DeOldify, but DeOldify was
+  trained on greyscale inputs. Same model, same photo:
+  sepia input -> 28.8% of output pixels extreme blue;
+  greyscale input -> 0.8%. (The pure-B&W live test passed
+  earlier precisely because B&W input is already grey.)
+- FIX: the 256x256 model input is now desaturated to true
+  greyscale first (`toGrayscale` in `lib/browser/deoldify-core`,
+  ITU-R 601 luma, same as PIL convert("L")), written back to the
+  model-input canvas so BOTH the worker path and the main-thread
+  fallback get grey. The original photo is untouched — the LAB
+  merge still takes its detail from it, so nothing is lost.
+- REGRESSION TEST: `tests/deoldify-grayscale.test.ts` (4 tests:
+  sepia luma value, grey unchanged, alpha preserved, black/blue).
+- NOTE FOR THE SERVER PATH: whenever server colorize/restore is
+  built, its model input must be desaturated the same way —
+  a tinted input will blotch there too.
+
 All work on the `full-upgrade` branch unless noted. Production
 (master) is untouched; do not merge without the owner's approval.
 

@@ -125,6 +125,34 @@ export function rgbaToNchw(rgba: Uint8ClampedArray): Float32Array {
 }
 
 /**
+ * Desaturate RGBA pixels to true greyscale, in place of the colour
+ * information DeOldify must NOT see. DeOldify was trained on
+ * greyscale inputs; feeding it a sepia-tinted photo makes it
+ * produce vivid purple/blue blotches (proven 2026-11-01 on a real
+ * sepia photo: 28.8% of output pixels were extreme blue with a
+ * sepia input, vs 0.8% with a greyscale input). The luma formula is
+ * the same one PIL's convert("L") uses (ITU-R 601-2). Alpha is
+ * preserved. This is REQUIRED for sepia/faded photos and harmless
+ * for pure B&W (already grey) — and the LAB merge still takes its
+ * detail (L) from the untouched original, so nothing is lost.
+ */
+export function toGrayscale(
+  rgba: Uint8ClampedArray<ArrayBufferLike>
+): Uint8ClampedArray<ArrayBuffer> {
+  const out = new Uint8ClampedArray(rgba.length);
+  for (let o = 0; o + 3 < rgba.length; o += 4) {
+    const luma = Math.round(
+      (rgba[o] * 299 + rgba[o + 1] * 587 + rgba[o + 2] * 114) / 1000
+    );
+    out[o] = luma;
+    out[o + 1] = luma;
+    out[o + 2] = luma;
+    out[o + 3] = rgba[o + 3];
+  }
+  return out;
+}
+
+/**
  * Reference postprocess, exactly: NCHW float 0–255 -> RGBA pixels,
  * values clamped to 0–255 and rounded, alpha fully opaque.
  */

@@ -17,6 +17,7 @@ import {
   fetchDeoldifyModel,
   ortWasmPaths,
   runDeoldifyWithTensor,
+  toGrayscale,
 } from "./deoldify-core";
 import { labToRgb, mergeLabLuminance, rgbToLab } from "./lab";
 
@@ -200,10 +201,24 @@ export async function colorizeInBrowser(
   decoded.drawTo(orig.ctx, outW, outH);
   const origRgba = orig.ctx.getImageData(0, 0, outW, outH).data;
 
-  // Model input: squashed to 256x256 (the model's fixed input size).
+  // Model input: squashed to 256x256 (the model's fixed input size),
+  // then desaturated to TRUE greyscale before inference. DeOldify
+  // was trained on greyscale; a sepia input makes it output
+  // purple/blue blotches (proven 2026-11-01: 28.8% blotch pixels
+  // with sepia in, 0.8% with grey in). Writing the grey pixels
+  // back to the canvas covers BOTH run paths: the worker takes
+  // rgba256, and the main-thread fallback re-reads this canvas.
+  // The original (detail source for the LAB merge) is untouched.
   const small = makeCanvas(DEOLDIFY_INPUT_SIZE, DEOLDIFY_INPUT_SIZE);
   decoded.drawTo(small.ctx, DEOLDIFY_INPUT_SIZE, DEOLDIFY_INPUT_SIZE);
-  const rgba256 = small.ctx.getImageData(0, 0, DEOLDIFY_INPUT_SIZE, DEOLDIFY_INPUT_SIZE).data;
+  const rgba256 = toGrayscale(
+    small.ctx.getImageData(0, 0, DEOLDIFY_INPUT_SIZE, DEOLDIFY_INPUT_SIZE).data
+  );
+  small.ctx.putImageData(
+    new ImageData(rgba256, DEOLDIFY_INPUT_SIZE, DEOLDIFY_INPUT_SIZE),
+    0,
+    0
+  );
 
   // Run the model: worker first, main thread if workers are blocked.
   let outRgba256: Uint8ClampedArray;
