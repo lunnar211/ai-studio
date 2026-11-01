@@ -35,7 +35,7 @@ const faqs = [
   },
   {
     q: "How much does upscaling cost?",
-    a: "Enhance costs 1 photo credit. The free tier gives 10 photo credits per day. Colorize + HD costs 3 credits on the server.",
+    a: "Enhance is free and unlimited via the free routes. Premium adds faster paid-GPU processing, HD 4x up to 4096px and face enhance.",
   },
   {
     q: "Are my photos kept or shared?",
@@ -111,7 +111,7 @@ export default function UpscalerPage() {
         Upscale my photo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free tier: 10 photo credits per day; Enhance costs 1 credit. Premium: up to 4096 px with face enhance.
+        Free: unlimited enhance via the free routes. Premium: up to 4096 px with face enhance.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

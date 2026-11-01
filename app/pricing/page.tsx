@@ -6,7 +6,7 @@ import { CheckoutButton } from "@/app/account/AccountActions";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "AI Studio pricing: free tier with logo requests and photo credits per day, and Premium with higher limits, HD export and face enhance, sold through Paddle. The Premium price comes from Paddle, never invented.",
+  description: "AI Studio pricing: free unlimited photo enhance, colorize and restore via the free routes, and Premium with fast paid-GPU processing, HD export and face enhance, sold through Paddle. The Premium price comes from Paddle, never invented.",
   openGraph: {
     title: "Pricing | AI Studio",
     description: "Free and Premium plans for AI Studio logo generation and photo enhancement.",
@@ -26,16 +26,17 @@ export default async function PricingPage() {
   const monthly = configured ? await getPaddlePriceDisplay(process.env.PADDLE_PRICE_ID ?? "") : null;
   const yearlyId = process.env.PADDLE_PRICE_ID_YEARLY ?? "";
   const yearly = configured && yearlyId ? await getPaddlePriceDisplay(yearlyId) : null;
-  const cost = limits.photoCreditCost;
 
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <h1 className="font-display text-4xl font-bold italic">Pricing</h1>
       <p className="mt-3 max-w-2xl text-lg text-muted-fg dark:text-slate-300">
-        Start free, no account needed. Upgrade when you need more per day.
-        Signing in keeps the same free limits — it adds history and account
-        features, not more free credits.
+        Start free, no account needed, and use the photo tools as much as
+        you like. Signing in keeps the same free photo use — it adds
+        history and account features, not more free photo capacity.
+        Premium adds speed and quality on the paid-GPU route, not more
+        free-route use (free is already unlimited).
       </p>
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <section aria-label="Free plan" className="border-2 border-line bg-white p-6 dark:bg-slate-900">
@@ -43,7 +44,7 @@ export default async function PricingPage() {
           <p className="mt-2 text-3xl font-bold">$0</p>
           <ul className="mt-4 list-disc space-y-2 pl-6">
             <li>{limits.logoRequestsFree} logo requests per day (each request gives 3 variants)</li>
-            <li>{limits.photoCreditsFree} photo credits per day — Enhance {cost.enhance}, Colorize {cost.colorize}, Restore + Colorize {cost.restore}</li>
+            <li>Unlimited photo enhance, colorize and restore via the free routes (browser colorize + free server route + local sharpening), no daily cap, no account needed</li>
             <li>Logo downloads: SVG and 1024px PNG</li>
             <li>Photo downloads: PNG, JPG, or WebP</li>
             <li>Free browser colorize (unlimited, photo stays on your device)</li>
@@ -71,7 +72,7 @@ export default async function PricingPage() {
           )}
           <ul className="mt-4 list-disc space-y-2 pl-6">
             <li>{limits.logoRequestsPremium} logo requests per day (each request gives 3 variants)</li>
-            <li>{limits.photoCreditsPremium} photo credits per day — same per-job costs as Free</li>
+            <li>Fast paid-GPU photo processing (the free routes stay unlimited for everyone)</li>
             <li>HD 4x upscaling up to 4096px longest edge</li>
             <li>Face enhance on upscales</li>
             <li>Priority generation</li>
@@ -108,10 +109,7 @@ export default async function PricingPage() {
             </thead>
             <tbody>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Logo requests per day</th><td className="p-3">{limits.logoRequestsFree} (3 variants each)</td><td className="p-3">{limits.logoRequestsPremium} (3 variants each)</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Photo credits per day</th><td className="p-3">{limits.photoCreditsFree}</td><td className="p-3">{limits.photoCreditsPremium}</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Enhance cost</th><td className="p-3">{cost.enhance} credit</td><td className="p-3">{cost.enhance} credit</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Colorize cost</th><td className="p-3">{cost.colorize} credits</td><td className="p-3">{cost.colorize} credits</td></tr>
-              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Restore + Colorize cost</th><td className="p-3">{cost.restore} credits</td><td className="p-3">{cost.restore} credits</td></tr>
+              <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Photo enhance / colorize / restore</th><td className="p-3">Unlimited via the free routes</td><td className="p-3">Unlimited free routes + fast paid-GPU route</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">HD upscaling</th><td className="p-3">Up to 2x / 2048px</td><td className="p-3">Up to 4x / 4096px</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Face enhance</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>
               <tr className="border-b border-line"><th scope="row" className="p-3 font-medium">Priority generation</th><td className="p-3">No</td><td className="p-3">Yes</td></tr>
@@ -124,9 +122,12 @@ export default async function PricingPage() {
       </section>
 
       <p className="mt-6 text-sm text-muted-fg dark:text-slate-400">
-        Limits are per visitor (free) or per account (signed in), counted per
-        day. One logo request — 3 variants — uses 1 credit. Browser
-        colorize is unlimited and uses no credits. Refunds: contact us via
+        Photo use on the free routes is unlimited (no daily cap); abuse
+        protection limits requests to 5 per minute per visitor. Logo
+        requests are per visitor (free) or per account (signed in),
+        counted per day. One logo request — 3 variants — uses 1 logo
+        credit. Browser colorize is unlimited and uses no credits.
+        Refunds: contact us via
         the <Link href="/contact" className="underline">Contact page</Link> within
         14 days of the charge with your transaction id; approved refunds are
         issued by Paddle to the original payment method, minus Paddle&apos;s

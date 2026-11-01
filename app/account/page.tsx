@@ -46,10 +46,7 @@ export default async function AccountPage() {
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
   if (!dbUser) redirect("/signin");
   const settings = await getSettings();
-  const [logoToday, enhanceToday] = await Promise.all([
-    countJobsToday(user.id, "logo"),
-    countJobsToday(user.id, "enhance"),
-  ]);
+  const logoToday = await countJobsToday(user.id, "logo");
   const jobs = await prisma.job.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
@@ -82,7 +79,7 @@ export default async function AccountPage() {
         <h2 className="text-2xl font-bold">Usage today</h2>
         <p className="mt-2 text-muted-fg dark:text-slate-300">
           Logos: {logoToday} / {dbUser.plan === "PREMIUM" ? settings.logoDailyPremium : settings.logoDailyFree} ·{" "}
-          Enhancements: {enhanceToday} / {dbUser.plan === "PREMIUM" ? settings.enhanceDailyPremium : settings.enhanceDailyFree}
+          Photos: unlimited on the free routes{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
         </p>
         <div className="mt-4">
           <CheckoutButton />

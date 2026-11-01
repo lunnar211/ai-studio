@@ -86,7 +86,9 @@ export function SettingsForm({ initial }: { initial: Record<string, string> }) {
   const [values, setValues] = useState(initial);
   const fields: Array<[string, string]> = [
     ["logoDailyFree", "Logo daily limit (free)"], ["logoDailyPremium", "Logo daily limit (premium)"],
-    ["enhanceDailyFree", "Enhance daily limit (free)"], ["enhanceDailyPremium", "Enhance daily limit (premium)"],
+    // enhanceDailyFree no longer gates anything: free photos are
+    // unlimited. enhanceDailyPremium is the Premium paid-GPU budget.
+    ["enhanceDailyPremium", "Premium paid-GPU photo budget per day"],
     ["groqCostPerJobUsd", "Groq cost estimate per logo job (USD)"], ["replicateCostPerJobUsd", "Replicate cost estimate per enhance job (USD)"],
     ["apiBudgetUsd", "AI budget alert threshold, trailing 30 days (USD)"],
     ["announcement", "Announcement banner (empty = hidden)"],

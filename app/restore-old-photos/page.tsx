@@ -35,7 +35,7 @@ const faqs = [
   },
   {
     q: "How much does restoration cost?",
-    a: "Restore + Colorize costs 3 photo credits on the server. The free tier gives 10 photo credits per day, so you can restore several photos a day free.",
+    a: "Restore + Colorize is free and unlimited via the free routes. Premium adds faster paid-GPU processing, HD 4x and face enhance.",
   },
   {
     q: "Are my photos kept or shared?",
@@ -111,7 +111,7 @@ export default function RestorePage() {
         Restore my photo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free tier: 10 photo credits per day; Restore + Colorize costs 3 credits on the server.
+        Free: unlimited restore via the free routes.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

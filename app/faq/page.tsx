@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: `Yes. The free tier gives you ${LIMITS.logoRequestsFree} logo requests and ${LIMITS.photoCreditsFree} photo credits per day, with no account and no payment details. One logo request gives 3 variants and uses 1 credit. Photo jobs cost ${LIMITS.photoCreditCost.enhance} credit for Enhance, ${LIMITS.photoCreditCost.colorize} for Colorize, and ${LIMITS.photoCreditCost.restore} for Restore + Colorize. Signing in keeps the same free limits and adds saved logo history; Premium raises the limits to ${LIMITS.logoRequestsPremium} logo requests and ${LIMITS.photoCreditsPremium} photo credits per day.`,
+    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free routes (browser colorize + free server route + local sharpening), with no account and no payment details. The only photo limit is abuse protection: 5 requests per minute per visitor. Logo generation is separate: the free tier gives you ${LIMITS.logoRequestsFree} logo requests per day, and one logo request gives 3 variants. Signing in keeps the same free photo use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority, and raises logo requests to ${LIMITS.logoRequestsPremium} per day.`,
   },
   {
     q: "What do I get from the logo generator?",

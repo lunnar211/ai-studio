@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "Is colorizing really free?",
-    a: "Yes. Colorize in your browser is unlimited and free, and your photo never leaves your device. Server colorize uses 2 photo credits; the free tier gives 10 photo credits per day.",
+    a: "Yes. Colorize in your browser is unlimited and free, and your photo never leaves your device. Server colorize is also free and unlimited via the free server route; Premium adds faster paid-GPU processing.",
   },
   {
     q: "What photos work best?",
@@ -111,7 +111,7 @@ export default function ColorizePage() {
         Colorize my photo — free
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free tier: 10 photo credits per day; Colorize costs 2 credits on the server. Browser colorization is unlimited and free.
+        Free: unlimited colorize via the free routes. Browser colorization is unlimited and free, and your photo never leaves your device.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

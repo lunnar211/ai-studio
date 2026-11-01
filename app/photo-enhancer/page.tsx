@@ -83,7 +83,7 @@ export default async function EnhancerPage({
           there is no automated image-content check at launch — see the Acceptable Use page. Files are
           processed on our server and deleted immediately after processing (max 60 minutes in any case);
           we never list or share them.
-          Free tier: 10 photo credits per day per visitor (Enhance 1, Colorize/Restore 2, Colorize + HD 3).
+          Free: unlimited photo enhance, colorize and restore via the free routes, no daily cap.
         </p>
       </section>
       <section aria-labelledby="faq-enhance" className="mt-8">
