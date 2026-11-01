@@ -26,6 +26,7 @@ export function Footer() {
               ["/about", "About"],
               ["/contact", "Contact"],
               ["/privacy", "Privacy Policy"],
+              ["/admin", "Admin"],
               ["/terms", "Terms of Service"],
               ["/cookies", "Cookie Policy"],
               ["/refund-policy", "Refund Policy"],

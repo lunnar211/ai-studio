@@ -37,7 +37,10 @@ export function Header() {
   }, []);
   const nav = [
     ...BASE_NAV,
-    ...(signedIn ? [{ href: "/account", label: "My account" }] : []),
+    // Discoverability only: linking to /admin never grants access —
+    // the admin pages and APIs still enforce admin role + fresh TOTP
+    // server-side, fail-closed, exactly as before.
+    ...(signedIn ? [{ href: "/account", label: "My account" }, { href: "/admin", label: "Admin" }] : []),
     ...(signedIn === false ? [{ href: "/signin", label: "Sign in" }] : []),
   ];
   return (
