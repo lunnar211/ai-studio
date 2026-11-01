@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/admin/usage", label: "Usage & abuse" },
   { href: "/admin/ai-health", label: "AI health" },
   { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/database", label: "Database" },
   { href: "/admin/support", label: "Support inbox" },
   { href: "/admin/logs", label: "Logs" },
 ];

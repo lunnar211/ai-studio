@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SignInButton } from "./SignInButton";
+import { PasswordSignIn } from "./PasswordSignIn";
 import { authConfigured } from "@/lib/auth";
 import { safeRedirectPath } from "@/lib/redirect";
 
@@ -29,7 +30,7 @@ export default async function SignInPage({
     <div className="mx-auto max-w-md">
       <h1 className="font-display text-4xl font-bold italic">Sign in</h1>
       <p className="mt-3 text-lg text-muted-fg dark:text-slate-300">
-        Sign in with Google to save your logo history and photo jobs on your account page.
+        Sign in to save your logo history and photo jobs on your account page.
         Guests can still use both tools free and unlimited — no account needed.
       </p>
       <div className="mt-6 border-2 border-line bg-white p-6 dark:bg-slate-900">
@@ -39,7 +40,10 @@ export default async function SignInPage({
           </p>
         )}
         {authConfigured ? (
-          <SignInButton next={next} />
+          <>
+            <SignInButton next={next} />
+            <PasswordSignIn next={next} />
+          </>
         ) : (
           <p className="text-muted-fg dark:text-slate-300">
             Sign-in is not set up yet. The site owner needs to connect the login
@@ -48,9 +52,10 @@ export default async function SignInPage({
           </p>
         )}
         <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-          Only Google sign-in is offered, with minimal scopes (openid, email, profile),
-          via Supabase Auth. No password is ever created or stored here. By signing in
-          you accept the{" "}
+          Google sign-in is the primary way in, with minimal scopes (openid, email, profile),
+          via Supabase Auth. Email + password sign-in is also offered for accounts the site
+          owner created in the Supabase dashboard. No password is ever created or stored here
+          by the site itself. By signing in you accept the{" "}
           <a className="underline" href="/terms">Terms</a> and{" "}
           <a className="underline" href="/privacy">Privacy Policy</a>.
         </p>

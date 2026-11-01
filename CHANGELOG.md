@@ -512,3 +512,132 @@ Verified read-only, no new project, no new credentials:
   payments → /dashboard lands on the same page → with the schema
   unpushed, /account shows the honest schema message, never a
   500 or a fake number.
+
+## Fix — one admin identity, full admin panel, professional redesign (this change)
+
+Owner brief (2026-11-01): one admin login across all sites, a full
+admin panel controlling the whole shared database, and a professional
+redesign (not vibe-coded), following ui-ux-pro-max + frontend-design.
+
+### 1. One admin identity (same on every site)
+
+- Google sign-in stays primary. ADDED email + password sign-in as an
+  option (`app/signin/PasswordSignIn.tsx`, Supabase Auth
+  `signInWithPassword`, alongside the Google button). There is no
+  self-service password signup: accounts are created ONLY by the
+  owner in the Supabase dashboard (Authentication → Add user) with a
+  fresh password never shared in chat, and the Email provider must be
+  enabled there by him (SETUP.md §6 step 4 covers both taps). No
+  password from chat history was used, stored, or put in any file —
+  the previously pasted password is burned and stays burned.
+- Errors are deliberately generic ("Invalid email or password, or
+  this account is not set up for password sign-in yet") so the form
+  never reveals which accounts exist, whether an email is confirmed,
+  or whether an account only has Google sign-in.
+- The same admin email identity works across all sites via the
+  `ADMIN_EMAILS` allowlist (env-driven, never hardcoded): the first
+  allowlisted login becomes ADMIN + SUPER automatically, or a SUPER
+  grants the role on `/admin/users`. TOTP 2FA stays MANDATORY for
+  `/admin` on every route, whichever way the admin signed in —
+  enforced server-side by `requireAdminPage` (pages) and
+  `requireAdmin` (API routes, fail-closed when no TOTP secret is
+  set). Admin role gating is server-side on every admin API route
+  (verified live: PATCH without a session returns 403 Forbidden).
+- The sign-in page no longer says "Only Google sign-in is offered":
+  it describes Google as primary and email + password for
+  owner-created accounts. When sign-in is unconfigured, neither the
+  Google button nor the password form renders — only the plain-words
+  message (Playwright asserts both).
+
+### 2. Full admin panel (what was missing, added; what existed, kept)
+
+- NEW — `/admin/database`: read-only overview of the whole shared
+  database — live row counts + 5 latest rows for all 18 tables
+  (User, LogoGeneration, PhotoJob, Job, AiUsageLog, Subscription,
+  Payment, AuditLog, AdminNote, SupportMessage, Expense, BlockedIp,
+  SiteSetting, WebhookEvent, ErrorLog, plus the 3 legacy Auth.js
+  tables as counts only). No SQL console, no edits, no deletes, no
+  bulk action. Sensitive columns are NEVER selected: no TOTP
+  secrets, no legacy tokens, no base64 photo data, no logo SVG
+  blobs, no Paddle customer/subscription ids (verified by grep).
+  A table whose schema is not pushed yet shows an honest "schema
+  push pending" note instead of breaking the page. Linked in the
+  admin nav. Provider names appear here only because this is the
+  owner's own panel — the P0 rule still bans them from user-facing
+  UI, and this page is admin-only.
+- NEW — admin role management: `/api/admin/users/[id]` PATCH now
+  accepts `role` (USER/ADMIN) + `adminRole` (SUPER/SUPPORT/FINANCE),
+  SUPER-only, with guards: no changing your own role (no
+  self-demotion lockout), an admin role requires role ADMIN, and
+  dropping to USER forcibly clears any stale admin role. Every
+  change is audit-logged with an accurate action name. The user
+  detail page gains a Role + Admin role form (SUPER only) and states
+  that new accounts are created in the Supabase dashboard, never here.
+- NEW — overview counts completed: `/admin` now also shows logo
+  generations (all time), photo jobs (all time), and revenue total
+  (same definition as the Money page — sum of all payment rows — so
+  the two pages never disagree; refund rows are listed separately
+  on Money). Existing live counts kept: users, new today/week/month,
+  active week, failed jobs, errors, AI cost vs budget.
+- NEW — audit gap closed: TOTP enrollment (`/api/admin/setup-2fa`
+  POST) now writes an audit row (`2fa.setup`). Audit coverage
+  re-verified: every admin mutation route audits; the only
+  unaudited routes are read-only GETs (ai-health) and the 2FA status
+  check.
+- KEPT (already met the brief, verified not assumed): Users search +
+  plan/status filters + suspend/unsuspend + plan change + notes;
+  Money (Paddle orders, revenue today/week/month/total, expenses,
+  refunds, CSV export); Tokens & providers (`/admin/ai-health`:
+  per-provider calls, success rate, key-present booleans only —
+  never values — toggle state, spend today, daily cap) + Settings
+  kill-switches per provider + spend caps; Site settings; Activity
+  log (`/admin/logs` shows every admin action).
+- NOT BUILT, honestly reported: there is NO manual-payment-proof
+  approve/reject queue in AI Studio because no manual payment flow
+  exists here (Paddle only; payouts are manual expense records).
+  Building a proof queue would invent a flow the site does not
+  have. If the owner wants manual payments on AI Studio later,
+  that is a new feature with its own brief.
+
+### 3. Professional redesign (systematized, not rebranded)
+
+- The ui-ux-pro-max design-system search ran (AI-Native UI,
+  purple/pink, Space Grotesk/DM Sans). Deliberately NOT applied as
+  a rebrand: the site already has a shipped identity (pink/cream +
+  cyan accent + Playfair Display italic + 2px borders), and a
+  purple rebrand would break recognition, OG images, and logo
+  examples for no user benefit. The skill's structural rules were
+  applied instead (accessibility first, 44px targets, mobile-first,
+  no layout shift, semantic tokens).
+- NEW — `DESIGN_SYSTEM.md`: the single source of truth — all tokens
+  (from `app/globals.css` `@theme`), the 11 rules (16px/1.5 type,
+  44px targets, 3px cyan focus outline, reduced-motion respected,
+  max-widths, border-2 cards with no shadows, SVG icons only,
+  labelled forms with near-field errors, plain-words copy, honesty
+  rules, no layout shift). Audit found the system already followed
+  in code: zero raw hex in any component.
+- FIXED — one real contrast failure: the pricing page's tool link
+  used `text-brand` (#EC4899 on white, ~3:1) — now `text-brand-dark`
+  (passes 4.5:1). No other small-text use of `text-brand` exists.
+- KEPT INTACT: every URL works (no URL changed; `/dashboard`
+  redirect from the previous phase untouched), honest labels, leak
+  rules, free-unlimited photo model, logo unlimited, 5/min limiter,
+  security headers.
+- Verified: tsc clean, eslint clean on all touched files, vitest
+  112/112, build EXIT=0 (includes `/admin/database`), local
+  `next start` checks (`/admin/database` logged out → 307 to
+  `/signin?next=...`; users PATCH without session → 403; `/signin`
+  unconfigured shows only the plain-words message), dev-server
+  check with placeholder Supabase env (both Google button and
+  password form render), Playwright public 9/9 + a11y-mobile 6/6
+  (360px no overflow on Home, both tools, landing page; keyboard
+  reaches the tool CTAs; landing CTA keyboard-reachable), leak
+  scan clean. NEVER claimed preview-verified; merge to master
+  still needs explicit approval.
+- Owner preview checklist: `/signin` (once configured) shows Google
+  + email/password options → sign in with the dashboard-created
+  admin account → `/admin` shows the new generations/photo-jobs/
+  revenue cards → `/admin/database` shows live counts + recent
+  rows, no secrets → `/admin/users/<any>` → change a test user's
+  role (not your own) → `/admin/setup-2fa` still works and the
+  action appears in `/admin/logs`.

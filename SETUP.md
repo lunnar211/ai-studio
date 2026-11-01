@@ -181,6 +181,17 @@ bottom; each row says what visitors see until it is done.
      reuse a password or secret that was ever pasted in chat.
    - Redeploy, sign in with Google, then open
      `/admin/setup-2fa` and complete the authenticator setup.
+   - **Email + password sign-in (optional, for admin accounts):**
+     Supabase dashboard → Authentication → Providers → **Email**:
+     confirm it is enabled. Then Authentication → Users → **Add
+     user**: create the admin user with a fresh password you never
+     share in chat (the site has no self-service password signup;
+     accounts are created by you here). That user then signs in on
+     `/signin` with email + password, alongside Google. For admin
+     rights, the user's email must also be in `ADMIN_EMAILS`
+     (first allowlisted login becomes ADMIN + SUPER automatically,
+     or a SUPER grants the role on `/admin/users`). Two-factor
+     stays mandatory for `/admin` whichever way the admin signed in.
 5. **Premium checkout (Paddle)** — what visitors see until done:
    the Pricing page says checkout is not configured yet and shows
    no Upgrade button; every free tool still works.

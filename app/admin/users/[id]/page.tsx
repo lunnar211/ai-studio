@@ -31,7 +31,7 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
         <p>Subscriptions: {subs.map((s) => `${s.plan}/${s.status}`).join(", ") || "none"}</p>
         <p>Payments: {payments.map((p) => `${p.amount} ${p.currency} ${p.status}`).join(" · ") || "none"}</p>
       </div>
-      {me.adminRole === "SUPER" && <UserActions userId={id} status={user.status} plan={user.plan} />}
+      {me.adminRole === "SUPER" && <UserActions userId={id} status={user.status} plan={user.plan} role={user.role} adminRole={user.adminRole} />}
       {(me.adminRole === "SUPER" || me.adminRole === "SUPPORT") && <NoteForm userId={id} />}
       <section aria-label="Internal notes">
         <h3 className="text-xl font-bold">Internal notes</h3>

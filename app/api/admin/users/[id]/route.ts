@@ -9,6 +9,13 @@ const Patch = z.object({
   status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
   plan: z.enum(["FREE", "PREMIUM"]).optional(),
   resetLimits: z.boolean().optional(),
+  // Admin role management (SUPER only, see guards below). `adminRole`
+  // is meaningful only when role is ADMIN; setting role USER clears it.
+  // There is deliberately no "create admin user" here: new auth users
+  // are created by the owner in the Supabase dashboard, and this panel
+  // manages existing users only.
+  role: z.enum(["USER", "ADMIN"]).optional(),
+  adminRole: z.enum(["SUPER", "SUPPORT", "FINANCE"]).nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { status, plan, resetLimits } = parsed.data;
+  const { status, plan, resetLimits, role, adminRole } = parsed.data;
   try {
     if (resetLimits) {
       const start = new Date();
@@ -27,12 +34,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       await auditAdmin(req, session.id, "limits.reset", "user", id);
       return NextResponse.json({ ok: true });
     }
-    const data: Record<string, string> = {};
+    const data: Record<string, string | null> = {};
     if (status) data.status = status;
     if (plan) data.plan = plan;
+    if (role !== undefined || adminRole !== undefined) {
+      // No self-demotion lockout: an admin cannot change their own role,
+      // so the last SUPER can never remove themselves by accident.
+      if (id === session.id) return NextResponse.json({ error: "Admins cannot change their own role here." }, { status: 400 });
+      const target = await prisma.user.findUnique({ where: { id } });
+      if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+      const nextRole = role ?? target.role;
+      const nextAdminRole = adminRole !== undefined ? adminRole : target.adminRole;
+      if (nextAdminRole !== null && nextRole !== "ADMIN") {
+        return NextResponse.json({ error: "An admin role needs the ADMIN role. Set role to ADMIN first." }, { status: 400 });
+      }
+      if (role !== undefined) data.role = role;
+      if (adminRole !== undefined) data.adminRole = adminRole;
+      // Dropping to USER clears any admin role, even if the caller only
+      // sent role: a USER row must never carry a stale adminRole.
+      if (nextRole === "USER") data.adminRole = null;
+    }
     if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
     await prisma.user.update({ where: { id }, data: data as never });
-    await auditAdmin(req, session.id, `user.${status ? "status" : "plan"}`, "user", id);
+    const action = role !== undefined || adminRole !== undefined ? "role" : status ? "status" : "plan";
+    await auditAdmin(req, session.id, `user.${action}`, "user", id);
   } catch {
     return NextResponse.json({ error: "Update failed." }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdmin, auditAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { encryptTotpSecret, otpauthUrl, randomTotpSecret } from "@/lib/totp";
 
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (user.totpEnabled) return NextResponse.json({ enabled: true });
   const secret = randomTotpSecret();
   await prisma.user.update({ where: { id: session.id }, data: { totpSecretEncrypted: encryptTotpSecret(secret) } });
+  // Enrolling a second factor is security-relevant: audit it like every
+  // other admin mutation (verify-2fa already audits its own step).
+  await auditAdmin(req, session.id, "2fa.setup", "user", session.id);
   const url = otpauthUrl(secret, user.email);
   const qr = await QRCode.toDataURL(url);
   return NextResponse.json({ enabled: false, secret, otpauthUrl: url, qr });

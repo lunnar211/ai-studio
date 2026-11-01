@@ -49,7 +49,7 @@ export default async function PricingPage() {
             <li>Upscaling up to 2x / 2048px</li>
             <li>No account, no payment details</li>
           </ul>
-          <Link href="/logo-generator" className="mt-6 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand px-5 py-2.5 font-semibold text-brand">
+          <Link href="/logo-generator" className="mt-6 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand px-5 py-2.5 font-semibold text-brand-dark">
             Start free
           </Link>
         </section>

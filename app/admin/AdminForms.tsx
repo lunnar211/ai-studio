@@ -30,9 +30,11 @@ function usePost(path: string) {
   return { post, state, busy };
 }
 
-export function UserActions({ userId, status, plan }: { userId: string; status: string; plan: string }) {
+export function UserActions({ userId, status, plan, role, adminRole }: { userId: string; status: string; plan: string; role: string; adminRole: string | null }) {
   const { post, state, busy } = usePost(`/api/admin/users/${userId}`);
   const [newPlan, setNewPlan] = useState(plan);
+  const [newRole, setNewRole] = useState(role);
+  const [newAdminRole, setNewAdminRole] = useState(adminRole ?? "");
   return (
     <div className="space-y-3 border-2 border-line bg-white p-4 dark:bg-slate-900">
       <h3 className="font-bold">Admin actions (SUPER only)</h3>
@@ -60,6 +62,26 @@ export function UserActions({ userId, status, plan }: { userId: string; status: 
         </div>
         <Button type="button" variant="outline" disabled={busy} onClick={() => post({ plan: newPlan }, "PATCH")}>Change plan</Button>
       </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <Label htmlFor="role-change">Role</Label>
+          <select id="role-change" value={newRole} onChange={(e) => setNewRole(e.target.value)} className="min-h-[44px] border-2 border-line bg-white px-2 dark:bg-slate-900">
+            <option value="USER">USER</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="admin-role-change">Admin role (needs ADMIN)</Label>
+          <select id="admin-role-change" value={newAdminRole} onChange={(e) => setNewAdminRole(e.target.value)} className="min-h-[44px] border-2 border-line bg-white px-2 dark:bg-slate-900">
+            <option value="">None</option>
+            <option value="SUPER">SUPER</option>
+            <option value="SUPPORT">SUPPORT</option>
+            <option value="FINANCE">FINANCE</option>
+          </select>
+        </div>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ role: newRole, adminRole: newAdminRole || null }, "PATCH")}>Change role</Button>
+      </div>
+      <p className="text-sm text-muted-fg dark:text-slate-400">New accounts are created by the site owner in the Supabase dashboard — this panel manages existing users only. You cannot change your own role.</p>
       {state && <p role="status" className="text-sm">{state}</p>}
     </div>
   );

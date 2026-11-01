@@ -31,6 +31,18 @@ export default async function AdminDashboard() {
     getSettings(),
   ]);
   const activeUsers = await prisma.user.count({ where: { lastLoginAt: { gte: startOfWeek() } } });
+  // Generations + photo jobs + revenue complete the overview: logo
+  // generations live in LogoGeneration (never in Job) and photo jobs in
+  // PhotoJob, so neither is visible in the per-tool Job chart above.
+  // Revenue uses the Money page's definition (sum of all payment rows)
+  // so the two pages never disagree; refund rows are listed separately
+  // on Money.
+  const [generations, photoJobs, revenueAgg] = await Promise.all([
+    prisma.logoGeneration.count(),
+    prisma.photoJob.count(),
+    prisma.payment.aggregate({ _sum: { amount: true } }),
+  ]);
+  const revenueTotal = revenueAgg._sum.amount ?? 0;
   const byTool = Object.fromEntries(jobs.map((j) => [j.tool, j._count]));
   const maxTool = Math.max(1, ...(Object.values(byTool) as number[]));
   const budget = parseFloat(settings.apiBudgetUsd) || 0;
@@ -46,6 +58,9 @@ export default async function AdminDashboard() {
     ["Total users", String(totalUsers)],
     ["New today / week / month", `${todayUsers} / ${weekUsers} / ${monthUsers}`],
     ["Active this week", String(activeUsers)],
+    ["Logo generations (all time)", String(generations)],
+    ["Photo jobs (all time)", String(photoJobs)],
+    ["Revenue total (all payment rows)", `$${(revenueTotal / 100).toFixed(2)}`],
     ["Failed jobs (all time)", String(failedJobs)],
     ["Server errors logged", String(errors)],
     ["AI cost, trailing 30 days (estimate)", `$${cost30.toFixed(2)} / budget $${budget.toFixed(2)}`],

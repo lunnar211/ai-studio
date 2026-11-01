@@ -54,6 +54,9 @@ test("sign-in gate is honest in plain words (unconfigured env)", async ({ page }
   // No dead sign-in button: the unconfigured page shows the message
   // instead of a button that goes nowhere.
   await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
+  // Same for the password form: it only renders when sign-in is configured.
+  await expect(page.getByLabel("Email")).toHaveCount(0);
+  await expect(page.getByLabel("Password")).toHaveCount(0);
 });
 
 test("logo landing pages show unlimited requests, never the old daily cap", async ({ page }) => {
