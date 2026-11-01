@@ -76,6 +76,10 @@ test("admin and account redirect when logged out", async ({ page }) => {
   await expect(page).toHaveURL(/\/signin/);
   await page.goto("/account");
   await expect(page).toHaveURL(/\/signin/);
+  // /dashboard is the live-dashboard alias: it redirects to /account,
+  // which redirects to /signin when logged out (same chain, no dead URL).
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/signin/);
 });
 
 test("cookie banner can be dismissed", async ({ page }) => {

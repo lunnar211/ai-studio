@@ -435,3 +435,80 @@ wherever one exists, (c) no dead button with no explanation.
   logo as guest (works once the AI service is connected) → open
   `/pricing` → checkout note, no Upgrade button → open `/contact`
   → form + honest fallback behaviour.
+
+## Fix — same-database dashboard wiring (LeadForge, this change)
+
+Owner instruction (2026-11-01): LeadsForceGen's dashboard is already
+on Supabase — connect AI Studio to the SAME database and make it.
+Verified read-only, no new project, no new credentials:
+
+- WIRED TO LEADFORGE IN CODE: Auth is Supabase Auth (Google
+  provider) on the owner's existing LeadForge project — the same
+  project LeadsForceGen uses. No Auth.js, no own Google OAuth
+  client, no service-role key anywhere in the codebase (grep
+  clean), no new Supabase project. Prisma reads `DATABASE_URL`
+  (the Supabase pooler string, pasted by the owner into Vercel)
+  and returns null when unset, so every DB feature degrades to an
+  honest message instead of crashing. The Supabase Auth user pool
+  is shared by design: one Google identity signs into all three
+  sites, and the callback upserts the Prisma User row by
+  `supabaseId` (falling back to email for pre-existing rows).
+- /ACCOUNT IS THE LIVE DASHBOARD: it renders only live Prisma
+  queries — profile + plan, logo requests today, Job history,
+  subscriptions, payments, logo history (via the jobs API), and
+  data export/delete. No demo, hardcoded, or placeholder number
+  anywhere; empty states say plainly "No subscriptions yet" /
+  "No payments yet" / "No jobs yet". LeadsForceGen's /dashboard
+  is a lead-search tool, not an account overview, so it is not a
+  template to mirror — duplicating it would be the wrong page.
+- NEW — Photo jobs section on /account (the gap this phase
+  found): photo jobs live only in PhotoJob, never in Job, so they
+  never appeared on the dashboard. They now do: mode, status, date
+  (latest 20), each linking to `/photo-enhancer?job=<id>` to resume.
+  A missing PhotoJob table degrades to an honest schema note, not
+  a broken section.
+- FIXED — label accuracy: "Logos generated today" became "Logo
+  requests today", because the count logs every logo Job row
+  including failed attempts. Requests is what it counts.
+- FIXED — missing-table robustness: the account page's main
+  queries now catch a missing-table error and render the honest
+  schema-update message ("the database needs one schema update...
+  the tools still work as guest tools") instead of a 500. Logo
+  history already did this via its API's 503.
+- NEW — /dashboard route: it redirects to /account (same auth
+  chain: logged out → /signin) rather than duplicating the page,
+  so the URL the owner expects works and cannot drift. It is
+  deliberately not in the sitemap (account pages never are).
+- SCHEMA VERDICT (read-only diff vs PDF Tools Hub, confirmed by
+  the sibling agent's independent report): the schemas are
+  DATABASE-COMPATIBLE — all 20 shared models have identical
+  scalar columns, so one push creates the same tables. Drift is
+  non-breaking but real: (1) ai-studio-only tables LogoGeneration,
+  AiUsageLog, PhotoJob (the sister client never touches them);
+  (2) PDF Hub's Job/AuditLog/ErrorLog carry extra indexes
+  ai-studio lacks; (3) AdminNote relation names differ
+  ("NoteTarget"/"NoteAuthor" vs "UserNotes") — client-level only,
+  same columns. Consequence: THE SINGLE PUSH MUST COME FROM
+  AI-STUDIO'S SUPERSET SCHEMA, once — a push from PDF Hub would
+  create the shared tables but NOT the three ai-studio tables,
+  and must never run afterward (it would treat them as removed).
+  This repo's schema header comment now names all three
+  ai-studio-only tables (it previously named only LogoGeneration).
+- PUSH STATUS: NOT RUN, and deliberately so — no DATABASE_URL is
+  present locally (only `.env.example` placeholders; process env
+  has none), so nothing was invented. The single push is the
+  owner's tap, once, from his machine, using THIS repo's schema
+  with the pooler connection string (SETUP.md §6 step 3). This
+  agent never pushes; PDF Hub never pushes afterward.
+- Verified: tsc clean, eslint clean on touched files, vitest
+  112/112, build EXIT=0 (includes /dashboard), local `next start`
+  checks (/dashboard 307 → /account → /signin when logged out,
+  home 200), Playwright public spec 9/9 (dashboard redirect
+  assertion added), leak scan clean. NEVER claimed
+  preview-verified; merge to master still needs explicit approval.
+- Owner preview checklist: sign in (once env + redirect +
+  redeploy + push are done) → /account shows your real plan,
+  logo requests, logo history, photo jobs, subscriptions,
+  payments → /dashboard lands on the same page → with the schema
+  unpushed, /account shows the honest schema message, never a
+  500 or a fake number.

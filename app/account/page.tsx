@@ -43,16 +43,53 @@ export default async function AccountPage() {
     );
   }
 
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) redirect("/signin");
-  const logoToday = await countJobsToday(user.id, "logo");
-  const jobs = await prisma.job.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-  const subs = await prisma.subscription.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
-  const payments = await prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 20 });
+  // If the tables were never pushed, these queries throw. Show the honest
+  // schema-update message instead of a 500 (same wording as logo history).
+  const accountData = await (async () => {
+    try {
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      if (!dbUser) return null;
+      const logoToday = await countJobsToday(user.id, "logo");
+      const jobs = await prisma.job.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+      const subs = await prisma.subscription.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
+      const payments = await prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 20 });
+      return { dbUser, logoToday, jobs, subs, payments };
+    } catch {
+      return "schema-missing" as const;
+    }
+  })();
+  if (accountData === null) redirect("/signin");
+  if (accountData === "schema-missing") {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="font-display text-4xl font-bold italic">My account</h1>
+        <p className="mt-3 text-muted-fg dark:text-slate-300">
+          Signed in as {user.email}. Logo and photo history are not available yet:
+          the database needs one schema update (the site owner runs one command).
+          The tools still work as guest tools.
+        </p>
+      </div>
+    );
+  }
+  const { dbUser, logoToday, jobs, subs, payments } = accountData;
+  // Photo jobs live in their own table (never in Job): query them
+  // separately so a missing PhotoJob table degrades to an honest note
+  // instead of taking the whole page down. `null` = table not pushed.
+  const photoJobs = await (async () => {
+    try {
+      return await prisma.photoJob.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -77,7 +114,7 @@ export default async function AccountPage() {
       <section aria-label="Usage today">
         <h2 className="text-2xl font-bold">Usage today</h2>
         <p className="mt-2 text-muted-fg dark:text-slate-300">
-          Logos generated today: {logoToday} (unlimited) ·{" "}
+          Logo requests today: {logoToday} (unlimited) ·{" "}
           Photos: unlimited on the free routes{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
         </p>
         <div className="mt-4">
@@ -117,6 +154,39 @@ export default async function AccountPage() {
                 {jobs.map((j) => (
                   <tr key={j.id} className="border-b border-line">
                     <td className="p-2">{j.tool}</td>
+                    <td className="p-2">{j.status}{j.errorCode ? ` (${j.errorCode})` : ""}</td>
+                    <td className="p-2">{j.createdAt.toISOString().slice(0, 16).replace("T", " ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section aria-label="Photo jobs">
+        <h2 className="text-2xl font-bold">Photo jobs</h2>
+        {photoJobs === null ? (
+          <p className="mt-2 text-muted-fg dark:text-slate-300">
+            Photo job history is not available yet: the database needs one schema update
+            (the site owner runs one command). Your photo jobs still work; they just are not saved here.
+          </p>
+        ) : photoJobs.length === 0 ? (
+          <p className="mt-2 text-muted-fg dark:text-slate-300">No photo jobs yet. Enhance or colorize a photo and it will appear here.</p>
+        ) : (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[480px] border-2 border-line bg-white text-left dark:bg-slate-900">
+              <thead>
+                <tr className="border-b-2 border-line">
+                  <th className="p-2">Mode</th><th className="p-2">Status</th><th className="p-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {photoJobs.map((j) => (
+                  <tr key={j.id} className="border-b border-line">
+                    <td className="p-2">
+                      <a className="underline" href={`/photo-enhancer?job=${j.id}`}>{j.mode}</a>
+                    </td>
                     <td className="p-2">{j.status}{j.errorCode ? ` (${j.errorCode})` : ""}</td>
                     <td className="p-2">{j.createdAt.toISOString().slice(0, 16).replace("T", " ")}</td>
                   </tr>

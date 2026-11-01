@@ -1,9 +1,10 @@
 // AI Studio + PDF Tools Hub SHARED schema (Prisma + PostgreSQL).
-// This file MUST stay identical in both sites (except the documented
-// supabaseId addition, which the sister site adopts in the same release,
-// and the AI-Studio-only LogoGeneration model added Nov 2026, which is a
-// separate table the sister client's queries never touch).
-// Do not rename models, tables, columns, or primary keys here.
+// This file MUST stay database-compatible in both sites (same tables
+// and columns; indexes and relation names may differ — they do not
+// change the database). AI-Studio-only tables, which the sister
+// client's queries never touch: LogoGeneration, AiUsageLog, PhotoJob
+// (added Nov 2026). Do not rename models, tables, columns, or primary
+// keys here.
 // Shared database: the owner's existing Supabase Postgres project
 // ("LeadForge"); the Supabase pooler DATABASE_URL is pasted into both
 // sites' Vercel projects. Auth is Supabase Auth (Google provider), not
