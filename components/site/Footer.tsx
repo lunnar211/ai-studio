@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SISTER_SITE_URL, LEADSFORCEGEN_URL } from "@/lib/site";
+import { FooterAdminLink } from "./FooterAdminLink";
 
 export function Footer() {
   return (
@@ -26,7 +27,6 @@ export function Footer() {
               ["/about", "About"],
               ["/contact", "Contact"],
               ["/privacy", "Privacy Policy"],
-              ["/admin", "Admin"],
               ["/terms", "Terms of Service"],
               ["/cookies", "Cookie Policy"],
               ["/refund-policy", "Refund Policy"],
@@ -38,6 +38,7 @@ export function Footer() {
                 <Link href={href} className="inline-flex min-h-[44px] items-center hover:underline">{label}</Link>
               </li>
             ))}
+            <FooterAdminLink />
           </ul>
         </nav>
         <nav aria-label="Other projects">

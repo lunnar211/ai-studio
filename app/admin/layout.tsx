@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireAdminLayout } from "@/lib/admin-page";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -19,13 +20,18 @@ const LINKS = [
   { href: "/admin/logs", label: "Logs" },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+// Hard gate: no session, no admin role, or a suspended account is
+// redirected to /signin BEFORE any admin heading, nav, or content
+// renders. TOTP is deliberately not checked here (setup-2fa and
+// verify-2fa must render without it); every page enforces TOTP itself.
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await requireAdminLayout();
   return (
     <div>
       <h1 className="font-display text-4xl font-bold italic">Admin</h1>
       <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
         Keyboard: press <kbd>/</kbd> on the Users page to focus search. Admin access requires
-        Google sign-in plus TOTP two-factor verification (valid 12 hours).
+        sign-in plus TOTP two-factor verification (valid 12 hours).
       </p>
       <nav aria-label="Admin" className="mt-4 flex flex-wrap gap-2">
         {LINKS.map((l) => (

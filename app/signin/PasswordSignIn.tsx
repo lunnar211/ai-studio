@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { signInWithEmailPassword } from "@/lib/supabase/password-signin";
 import { Button } from "@/components/ui/button";
 import { Label, TextInput } from "@/components/ui/field";
 
 // Email + password sign-in (Supabase Auth) alongside Google. This is an
 // OPTION for accounts the site owner created in the Supabase dashboard
 // (Authentication → Add user) — there is no self-service password
-// signup here, and no password is ever stored in code. Errors are
-// deliberately generic: one message covers a wrong password, an
-// unknown email, an unconfirmed email, and an account that only has
-// Google sign-in, so the form never reveals which accounts exist.
-// TOTP for /admin is enforced separately on every admin page and API
-// route, whichever way the admin signed in.
+// signup here, and no password is ever stored in code. The sign-in logic
+// lives in lib/supabase/password-signin.ts (unit-tested); this component
+// is only the form around it. TOTP for /admin is enforced separately on
+// every admin page and API route, whichever way the admin signed in.
 export function PasswordSignIn({ next = "/account" }: { next?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,21 +23,20 @@ export function PasswordSignIn({ next = "/account" }: { next?: string }) {
     e.preventDefault();
     setError("");
     setBusy(true);
-    const client = createSupabaseBrowserClient();
-    if (!client) {
-      setError("Sign-in is not set up yet.");
-      setBusy(false);
-      return;
-    }
-    const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+    const result = await signInWithEmailPassword(
+      createSupabaseBrowserClient(),
+      email,
+      password,
+      next
+    );
     setBusy(false);
-    if (error) {
-      setError("Invalid email or password, or this account is not set up for password sign-in yet.");
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
     // Full navigation (not router.push) so server components re-read the
     // fresh session cookies, exactly like the OAuth callback redirect.
-    window.location.assign(next);
+    window.location.assign(result.next);
   }
 
   return (

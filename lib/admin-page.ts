@@ -30,3 +30,19 @@ export async function requireAdminPage(
   }
   return { id: user.id as string, adminRole: user.adminRole as string };
 }
+
+// Layout-level hard gate for the whole /admin tree (app/admin/layout.tsx
+// calls this before rendering ANY admin UI). Same session + role +
+// suspended checks as requireAdminPage, but deliberately NO TOTP check:
+// setup-2fa and verify-2fa must render for admins who do not hold a valid
+// second factor yet, and every page under the layout still enforces TOTP
+// itself (except those two, which pass skipTotp). A visitor with no
+// session, a non-admin, or a suspended account never sees admin nav,
+// headings, or content — the redirect happens before any of it renders.
+export async function requireAdminLayout(): Promise<{ id: string; adminRole: string }> {
+  const session = await getSessionSafe();
+  const user = session?.user;
+  if (!user?.id || user.role !== "ADMIN" || !user.adminRole) redirect("/signin");
+  if (user.status === "SUSPENDED") redirect("/signin");
+  return { id: user.id as string, adminRole: user.adminRole as string };
+}

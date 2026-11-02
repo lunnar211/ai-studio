@@ -6,7 +6,7 @@ import { safeRedirectPath } from "@/lib/redirect";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to AI Studio with Google to save your logo history and photo jobs.",
+  description: "Sign in to AI Studio to save your logo history and photo jobs.",
   robots: { index: false, follow: false },
 };
 

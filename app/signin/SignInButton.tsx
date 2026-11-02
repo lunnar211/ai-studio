@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { oauthCallbackUrl } from "@/lib/supabase/oauth-redirect";
 import { Button } from "@/components/ui/button";
 
 export function SignInButton({ next = "/account" }: { next?: string }) {
@@ -15,7 +16,7 @@ export function SignInButton({ next = "/account" }: { next?: string }) {
     }
     // Redirects to this site's own /auth/callback route, which exchanges
     // the code and validates `next` (relative paths only) server-side.
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = oauthCallbackUrl(window.location.origin, next);
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
