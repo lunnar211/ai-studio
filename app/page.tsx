@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, Wand2, ShieldCheck, Zap, Download } from "lucide-react";
+import { Sparkles, Wand2, Music, ShieldCheck, Zap, Download } from "lucide-react";
 import { RestoreSection } from "@/components/site/RestoreSection";
 import { Reveal } from "@/components/motion/Reveal";
 
@@ -29,6 +29,10 @@ const TOOLS = [
   {
     href: "/photo-enhancer", icon: Wand2, title: "AI Photo Enhancer",
     desc: "Upload a JPG, PNG or WebP photo and get a sharper, upscaled version back. Compare before and after with a slider, then download PNG, JPG, or WebP.",
+  },
+  {
+    href: "/audio-cleaner", icon: Music, title: "Audio Cleaner",
+    desc: "Sign in, upload an audio file, and clean it in your browser: noise gate, trim, and normalize. Preview before and after, then download WAV. The file never leaves your device.",
   },
 ];
 

@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const BASE_NAV = [
   { href: "/logo-generator", label: "Logo Generator" },
   { href: "/photo-enhancer", label: "Photo Enhancer" },
+  { href: "/audio-cleaner", label: "Audio Cleaner" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
