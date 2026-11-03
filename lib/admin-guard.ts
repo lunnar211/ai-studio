@@ -52,7 +52,8 @@ export async function auditAdmin(
   actorId: string,
   action: string,
   targetType?: string,
-  targetId?: string
+  targetId?: string,
+  reason?: string
 ): Promise<void> {
-  await audit({ actorId, action, targetType, targetId, ipHash: hashIp(getClientIp(req)) });
+  await audit({ actorId, action, targetType, targetId, reason, ipHash: hashIp(getClientIp(req)) });
 }

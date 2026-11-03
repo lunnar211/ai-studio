@@ -184,8 +184,37 @@ model AuditLog {
   action     String
   targetType String?
   targetId   String?
+  // SUITE PHASE 1 (additive, nullable): the admin-supplied reason for
+  // user-affecting actions (suspend, plan, role, limits reset, delete,
+  // credit adjustment). The sister site never selects this field, so a
+  // nullable add is database-compatible. The owner pushes the schema
+  // ONCE from this repo; until then audit writes fall back to a row
+  // without a reason (see lib/admin-audit.ts) instead of failing.
+  reason     String?
   ipHash     String?
   createdAt  DateTime @default(now())
+}
+
+// AI-Studio-only additive model (SUITE Phase 1): recorded deltas to a
+// user's Premium paid-GPU budget. There is no balance column anywhere
+// in this codebase (free photos/logos are unlimited; the only budget
+// is the Premium GPU fair-use budget), so an adjustment is a signed
+// delta, not a balance edit: +N grants N extra GPU units, -N removes
+// them. Deltas are permanent until reversed by another adjustment.
+// userId/actorId are plain strings (no FK) on purpose: adjustments are
+// audit history and survive user deletion. The owner pushes the schema
+// ONCE from this repo; until then the credits API refuses honestly
+// with "schema update pending" instead of recording nothing. Ignored
+// by the sister site.
+model CreditAdjustment {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  reason    String
+  actorId   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model AdminNote {

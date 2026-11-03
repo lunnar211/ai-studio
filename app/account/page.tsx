@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionSafe } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { countJobsToday } from "@/lib/settings";
+import { photoBudgetSummary } from "@/lib/ai/credits";
 import { ExportButton, DeleteButton, CheckoutButton } from "./AccountActions";
 import LogoHistory from "@/components/LogoHistory";
 
@@ -91,6 +92,20 @@ export default async function AccountPage() {
     }
   })();
 
+  // SUITE Phase 1: the user's own Premium GPU-budget picture — budget,
+  // today's usage, recorded adjustments, remaining. Own data only (the
+  // session user id is the only filter). FREE users have no GPU budget:
+  // free routes are unlimited, so the section says so instead of
+  // showing a meaningless number. A missing table degrades to null
+  // (no section) rather than breaking the page.
+  const budget = await (async () => {
+    try {
+      return await photoBudgetSummary(user.id, dbUser.plan);
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <div className="max-w-3xl space-y-8">
       <div>
@@ -117,6 +132,18 @@ export default async function AccountPage() {
           Logo requests today: {logoToday} (unlimited) ·{" "}
           Photos: unlimited on the free routes{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
         </p>
+        {budget && budget.applies && (
+          <p className="mt-2 text-muted-fg dark:text-slate-300">
+            Premium GPU budget today: {budget.used} of {budget.budget} units used
+            {budget.adjustments !== 0 ? ` (adjustments: ${budget.adjustments >= 0 ? "+" : ""}${budget.adjustments})` : ""} ·{" "}
+            {budget.remaining} remaining.
+          </p>
+        )}
+        {dbUser.plan === "FREE" && (
+          <p className="mt-2 text-muted-fg dark:text-slate-300">
+            Premium GPU budget does not apply here — free routes are unlimited.
+          </p>
+        )}
         <div className="mt-4">
           <CheckoutButton />
         </div>

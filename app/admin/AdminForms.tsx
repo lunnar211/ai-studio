@@ -35,19 +35,26 @@ export function UserActions({ userId, status, plan, role, adminRole }: { userId:
   const [newPlan, setNewPlan] = useState(plan);
   const [newRole, setNewRole] = useState(role);
   const [newAdminRole, setNewAdminRole] = useState(adminRole ?? "");
+  // SUITE Phase 1: every user-affecting change requires a reason, shown
+  // on the audit trail. One reason box serves all actions on this card.
+  const [reason, setReason] = useState("");
   return (
     <div className="space-y-3 border-2 border-line bg-white p-4 dark:bg-slate-900">
       <h3 className="font-bold">Admin actions (SUPER only)</h3>
+      <div>
+        <Label htmlFor="admin-reason">Reason (required for every action below)</Label>
+        <TextInput id="admin-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required />
+      </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ status: status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED" }, "PATCH")}>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ status: status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED", reason }, "PATCH")}>
           {status === "SUSPENDED" ? "Unsuspend" : "Suspend"}
         </Button>
-        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ resetLimits: true }, "PATCH")}>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ resetLimits: true, reason }, "PATCH")}>
           Reset today&apos;s limits
         </Button>
         <Button
           type="button" variant="danger" disabled={busy}
-          onClick={async () => { if (confirm("Delete this user and all their data? This cannot be undone.")) await post({}, "DELETE"); }}
+          onClick={async () => { if (confirm("Delete this user and all their data? This cannot be undone.")) await post({ reason }, "DELETE"); }}
         >
           Delete user
         </Button>
@@ -60,7 +67,7 @@ export function UserActions({ userId, status, plan, role, adminRole }: { userId:
             <option value="PREMIUM">PREMIUM</option>
           </select>
         </div>
-        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ plan: newPlan }, "PATCH")}>Change plan</Button>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ plan: newPlan, reason }, "PATCH")}>Change plan</Button>
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <div>
@@ -79,11 +86,47 @@ export function UserActions({ userId, status, plan, role, adminRole }: { userId:
             <option value="FINANCE">FINANCE</option>
           </select>
         </div>
-        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ role: newRole, adminRole: newAdminRole || null }, "PATCH")}>Change role</Button>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => post({ role: newRole, adminRole: newAdminRole || null, reason }, "PATCH")}>Change role</Button>
       </div>
       <p className="text-sm text-muted-fg dark:text-slate-400">New accounts are created by the site owner in the Supabase dashboard — this panel manages existing users only. You cannot change your own role.</p>
       {state && <p role="status" className="text-sm">{state}</p>}
     </div>
+  );
+}
+
+// SUITE Phase 1: Premium GPU-budget adjustment (SUPER only). There is no
+// balance column in this codebase — an adjustment is a recorded signed
+// delta to the user's Premium paid-GPU budget (+ grants, − removes),
+// permanent until reversed. The reason is mandatory and lands on both
+// the adjustment row and the audit row.
+export function CreditForm({ userId }: { userId: string }) {
+  const { post, state, busy } = usePost("/api/admin/credits");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  return (
+    <form
+      className="space-y-3 border-2 border-line bg-white p-4 dark:bg-slate-900"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (await post({ userId, amount: Number(amount), reason })) { setAmount(""); setReason(""); }
+      }}
+    >
+      <h3 className="font-bold">GPU budget adjustment (SUPER only)</h3>
+      <p className="text-sm text-muted-fg dark:text-slate-400">
+        Adjusts this user&apos;s Premium paid-GPU budget only (free routes are unlimited and
+        never touch a budget). Positive grants units, negative removes them.
+      </p>
+      <div>
+        <Label htmlFor="credit-amount">Amount (GPU units, whole number, not zero)</Label>
+        <TextInput id="credit-amount" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      </div>
+      <div>
+        <Label htmlFor="credit-reason">Reason (required)</Label>
+        <TextInput id="credit-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required />
+      </div>
+      <Button type="submit" disabled={busy}>Record adjustment</Button>
+      {state && <p role="status" className="text-sm">{state}</p>}
+    </form>
   );
 }
 

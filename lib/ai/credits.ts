@@ -18,6 +18,7 @@ import {
   photoCreditBudgetFor,
   type PhotoMode,
 } from "../limits";
+import { applyAdjustments } from "../admin-audit";
 
 export type { PhotoMode };
 /** Premium paid-GPU cost per mode. Free paths never charge this. */
@@ -57,6 +58,53 @@ export async function photoCreditBudget(plan: "FREE" | "PREMIUM"): Promise<numbe
   return photoCreditBudgetFor(plan);
 }
 
+// SUITE Phase 1: recorded budget deltas for one user (grants +, removals
+// −). Missing table (schema not pushed) degrades to zero — an unpushed
+// schema must never invent budget, and never block on a missing table.
+export async function creditAdjustmentsTotal(userId: string): Promise<number> {
+  if (!prisma) return 0;
+  try {
+    const agg = await prisma.creditAdjustment.aggregate({
+      where: { userId },
+      _sum: { amount: true },
+    });
+    return agg._sum.amount ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+// SUITE Phase 1: a Premium user's effective GPU budget = plan budget +
+// adjustments (floored at zero). FREE users have no GPU budget at all —
+// free routes never touch this module — so this is only called for
+// PREMIUM callers and the user panel's Premium section.
+export async function effectivePhotoBudget(
+  plan: "FREE" | "PREMIUM",
+  userId: string
+): Promise<{ budget: number; adjustments: number }> {
+  const base = await photoCreditBudget(plan);
+  const adjustments = await creditAdjustmentsTotal(userId);
+  return { budget: applyAdjustments(base, adjustments), adjustments };
+}
+
+// SUITE Phase 1: one honest budget picture for the user panel — budget,
+// today's usage, adjustments, and what is left. FREE callers get
+// applies: false (there is no GPU budget to picture on free routes).
+export async function photoBudgetSummary(
+  userId: string,
+  plan: "FREE" | "PREMIUM"
+): Promise<
+  | { applies: false }
+  | { applies: true; budget: number; used: number; adjustments: number; remaining: number }
+> {
+  if (plan === "FREE") return { applies: false };
+  const [{ budget, adjustments }, used] = await Promise.all([
+    effectivePhotoBudget(plan, userId),
+    photoCreditsUsedToday(userId),
+  ]);
+  return { applies: true, budget, used, adjustments, remaining: Math.max(0, budget - used) };
+}
+
 /**
  * Premium paid-GPU budget check. Returns remaining AFTER this job if
  * allowed. FREE callers always pass with cost 0 — free jobs must never
@@ -72,7 +120,9 @@ export async function checkPhotoCredits(opts: {
     return { ok: true, remaining: Number.POSITIVE_INFINITY, budget: Number.POSITIVE_INFINITY, cost: 0 };
   }
   const cost = PHOTO_CREDIT_COST[opts.mode];
-  const budget = await photoCreditBudget(opts.plan);
+  // SUITE Phase 1: the check honors recorded adjustments, so a grant
+  // really does raise the budget and a removal really does lower it.
+  const { budget } = await effectivePhotoBudget(opts.plan, opts.userId);
   const used = await photoCreditsUsedToday(opts.userId);
   const remaining = Math.max(0, budget - used - cost);
   return { ok: used + cost <= budget, remaining, budget, cost };

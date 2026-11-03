@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 const LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/audit", label: "Audit trail" },
+  { href: "/admin/credits", label: "Credit adjustments" },
   { href: "/admin/money", label: "Money" },
   { href: "/admin/usage", label: "Usage & abuse" },
   { href: "/admin/ai-health", label: "AI health" },

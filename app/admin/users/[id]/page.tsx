@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page";
 import { prisma } from "@/lib/prisma";
-import { UserActions, NoteForm } from "../../AdminForms";
+import { UserActions, NoteForm, CreditForm } from "../../AdminForms";
+import { effectivePhotoBudget } from "@/lib/ai/credits";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,24 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
     prisma.payment.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
     prisma.subscription.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" } }),
   ]);
+  // SUITE Phase 1: budget adjustments + effective budget for this client.
+  // Status and numbers only — never file bytes. A missing table (schema
+  // not pushed) degrades to a pending note instead of breaking the page.
+  const budgetInfo = await (async () => {
+    try {
+      const [adjustments, effective] = await Promise.all([
+        prisma.creditAdjustment.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
+        user.plan === "PREMIUM" ? effectivePhotoBudget("PREMIUM", id) : null,
+      ]);
+      const total = adjustments.reduce((s, a) => s + a.amount, 0);
+      return { adjustments, total, effective };
+    } catch {
+      return null;
+    }
+  })();
+  const actors = budgetInfo && budgetInfo.adjustments.length
+    ? await prisma.user.findMany({ where: { id: { in: budgetInfo.adjustments.map((a) => a.actorId) } } })
+    : [];
   const logoCount = jobs.filter((j) => j.tool === "logo").length;
   const enhanceCount = jobs.filter((j) => j.tool === "enhance").length;
   return (
@@ -32,6 +51,37 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
         <p>Payments: {payments.map((p) => `${p.amount} ${p.currency} ${p.status}`).join(" · ") || "none"}</p>
       </div>
       {me.adminRole === "SUPER" && <UserActions userId={id} status={user.status} plan={user.plan} role={user.role} adminRole={user.adminRole} />}
+      {me.adminRole === "SUPER" && <CreditForm userId={id} />}
+      <section aria-label="GPU budget adjustments">
+        <h3 className="text-xl font-bold">GPU budget adjustments</h3>
+        {budgetInfo === null ? (
+          <p className="mt-2 text-muted-fg dark:text-slate-300">
+            Adjustments are not available yet: the database needs one schema update
+            (the site owner runs one command).
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-muted-fg dark:text-slate-300">
+              Total adjustments: {budgetInfo.total >= 0 ? "+" : ""}{budgetInfo.total} units
+              {budgetInfo.effective ? ` · Effective Premium budget: ${budgetInfo.effective.budget} units/day` : " · No Premium GPU budget (FREE plan)"}
+            </p>
+            {budgetInfo.adjustments.length === 0 ? (
+              <p className="mt-2 text-muted-fg dark:text-slate-300">No adjustments recorded.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {budgetInfo.adjustments.map((a) => (
+                  <li key={a.id} className="border-2 border-line bg-white p-3 dark:bg-slate-900">
+                    <p>{a.amount >= 0 ? "+" : ""}{a.amount} units · {a.reason}</p>
+                    <p className="text-sm text-muted-fg dark:text-slate-400">
+                      by {actors.find((u) => u.id === a.actorId)?.email || a.actorId} · {a.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
       {(me.adminRole === "SUPER" || me.adminRole === "SUPPORT") && <NoteForm userId={id} />}
       <section aria-label="Internal notes">
         <h3 className="text-xl font-bold">Internal notes</h3>

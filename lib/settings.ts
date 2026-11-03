@@ -89,13 +89,32 @@ export async function audit(opts: {
   action: string;
   targetType?: string;
   targetId?: string;
+  reason?: string;
   ipHash?: string;
 }): Promise<void> {
   if (!prisma) return;
   try {
     await prisma.auditLog.create({ data: { ...opts, actorId: opts.actorId ?? null } });
   } catch {
-    // Audit failure must not break the admin action itself.
+    // SUITE Phase 1 degrade: if the owner has not pushed the schema yet,
+    // the insert above fails on the unknown `reason` column. Retry
+    // without the reason so the audit ROW still survives (a reason-less
+    // trail beats no trail); the reason itself is dropped, not faked.
+    if (opts.reason !== undefined) {
+      try {
+        await prisma.auditLog.create({
+          data: {
+            actorId: opts.actorId ?? null,
+            action: opts.action,
+            targetType: opts.targetType,
+            targetId: opts.targetId,
+            ipHash: opts.ipHash,
+          },
+        });
+      } catch {
+        // Audit failure must not break the admin action itself.
+      }
+    }
   }
 }
 

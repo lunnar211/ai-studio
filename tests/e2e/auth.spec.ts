@@ -7,7 +7,11 @@ import { test, expect } from "@playwright/test";
 test("signin page shows not-configured state without Supabase env", async ({ page }) => {
   await page.goto("/signin");
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  await expect(page.getByText("not configured yet", { exact: false })).toBeVisible();
+  // SUITE Phase 1 fix: pre-existing stale assertion — the page's actual
+  // no-env copy is "not set up yet", not "not configured yet" (the latter
+  // only appears in the post-sign-in DB-missing error state). The page
+  // copy is the product truth; the spec now asserts what it renders.
+  await expect(page.getByText("not set up yet", { exact: false })).toBeVisible();
 });
 
 test("callback without a code redirects to signin, never externally", async ({ page }) => {

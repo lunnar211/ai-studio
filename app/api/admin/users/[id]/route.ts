@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin, auditAdmin } from "@/lib/admin-guard";
+import { normalizeReason } from "@/lib/admin-audit";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ const Patch = z.object({
   // manages existing users only.
   role: z.enum(["USER", "ADMIN"]).optional(),
   adminRole: z.enum(["SUPER", "SUPPORT", "FINANCE"]).nullable().optional(),
+  // SUITE Phase 1: every user-affecting change requires a human-written
+  // reason, recorded on the audit row. A change without a reason is a
+  // change nobody can explain later.
+  reason: z.string().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,12 +31,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const { status, plan, resetLimits, role, adminRole } = parsed.data;
+  const reason = normalizeReason(parsed.data.reason);
+  if (!reason.ok) return NextResponse.json({ error: reason.error }, { status: 400 });
   try {
     if (resetLimits) {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       await prisma.job.deleteMany({ where: { userId: id, createdAt: { gte: start } } });
-      await auditAdmin(req, session.id, "limits.reset", "user", id);
+      await auditAdmin(req, session.id, "limits.reset", "user", id, reason.reason);
       return NextResponse.json({ ok: true });
     }
     const data: Record<string, string | null> = {};
@@ -57,7 +64,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
     await prisma.user.update({ where: { id }, data: data as never });
     const action = role !== undefined || adminRole !== undefined ? "role" : status ? "status" : "plan";
-    await auditAdmin(req, session.id, `user.${action}`, "user", id);
+    await auditAdmin(req, session.id, `user.${action}`, "user", id, reason.reason);
   } catch {
     return NextResponse.json({ error: "Update failed." }, { status: 500 });
   }
@@ -70,11 +77,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (error) return error;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 503 });
   if (id === session.id) return NextResponse.json({ error: "Admins cannot delete themselves here." }, { status: 400 });
+  // SUITE Phase 1: deletes take a reason too — a deleted user deserves
+  // an explained audit row as much as a suspended one.
+  const reason = normalizeReason((await req.json().catch(() => null) as { reason?: unknown } | null)?.reason);
+  if (!reason.ok) return NextResponse.json({ error: reason.error }, { status: 400 });
   try {
     await prisma.adminNote.deleteMany({ where: { authorId: id } });
     await prisma.auditLog.deleteMany({ where: { actorId: id } });
     await prisma.user.delete({ where: { id } });
-    await auditAdmin(req, session.id, "user.delete", "user", id);
+    await auditAdmin(req, session.id, "user.delete", "user", id, reason.reason);
   } catch {
     return NextResponse.json({ error: "Delete failed." }, { status: 500 });
   }
