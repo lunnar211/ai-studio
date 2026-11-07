@@ -101,7 +101,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "Too many status checks. Please wait a minute and try again." }, { status: 429, headers: rateLimitHeaders(rl.remaining, rl.limit) });
   }
   if (!prisma) {
-    return NextResponse.json({ error: "Colorize is unavailable right now. Please try Enhance only for now." }, { status: 503 });
+    return NextResponse.json({ error: "Job status is unavailable right now because usage tracking is not set up yet." }, { status: 503 });
   }
   const job = await loadJob(id);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -701,7 +701,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params;
   const session = await getSessionSafe();
   const sessionUserId = (session?.user as unknown as { id?: string } | undefined)?.id ?? null;
-  if (!prisma) return NextResponse.json({ error: "Colorize is unavailable right now. Please try Enhance only for now." }, { status: 503 });
+  if (!prisma) return NextResponse.json({ error: "Job status is unavailable right now because usage tracking is not set up yet." }, { status: 503 });
   const job = await loadJob(id);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   if (job.userId && job.userId !== sessionUserId) {

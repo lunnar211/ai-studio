@@ -23,7 +23,6 @@ export default function Privacy() {
         <li><strong>Replicate:</strong> receives uploaded images when AI colorize or AI upscaling runs (DDColor, Real-ESRGAN). Replicate&apos;s own policy (April 1, 2026) states no fixed deletion period — data is kept as long as necessary to provide the service, plus legal/abuse retention and limited backup copies. See <a href="https://replicate.com/privacy" className="underline">replicate.com/privacy</a>. We make no deletion claim beyond what that policy states.</li>
         <li><strong>Your own Hugging Face Space:</strong> receives uploaded images for server colorize when you (the site owner) have configured a private Space. The Space is yours; its traffic follows Hugging Face&apos;s terms.</li>
         <li><strong>Local Sharp pipeline:</strong> runs on our server; no third party receives the image.</li>
-        <li><strong>Browser colorize:</strong> no third party receives the photo — the DeOldify model file (~25 MB) downloads to your device and inference runs locally.</li>
         <li><strong>Paddle:</strong> receives checkout and subscription data as merchant of record.</li>
         <li><strong>Vercel:</strong> hosting (and analytics if enabled). <strong>Upstash:</strong> distributed rate limiting, only if configured.</li>
         <li><strong>Cloudflare Turnstile:</strong> bot protection, only if configured.</li>

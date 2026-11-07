@@ -62,6 +62,10 @@ async function generateOne(
   }
 }
 
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   let body: unknown;
   try {

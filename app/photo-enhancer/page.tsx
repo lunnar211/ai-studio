@@ -4,7 +4,7 @@ import { RestoreSection } from "@/components/site/RestoreSection";
 
 export const metadata: Metadata = {
   title: "AI Photo Enhancer — Colorize, Restore and Upscale Old Photos",
-  description: "Colorize a black-and-white photo, restore an old damaged photo, or sharpen and upscale any photo up to 10 MB (JPG, PNG, WebP). Free tier, before/after slider, honest AI or standard-quality label. Colours on colorized photos are estimates.",
+  description: "Sharpen and upscale any photo up to 10 MB (JPG, PNG, WebP) — or, once set up, colorize a black-and-white photo or restore an old damaged photo. Enhance is free and unlimited; colorize and restore are part of the free tier but are not set up right now. Before/after slider, honest AI or standard-quality label. Colours on colorized photos are estimates.",
   openGraph: {
     title: "AI Photo Enhancer | AI Studio",
     description: "Colorize black-and-white photos, restore old photos, and upscale to HD. Free tier with an honest AI or standard-quality label.",
@@ -55,7 +55,8 @@ export default async function EnhancerPage({
         Upload a photo and get a sharper, larger version back — or bring a black &amp; white photo
         back to colour, or restore an old photo. Drag the slider to compare before and after, then
         download the result. Every result is labelled honestly: AI enhanced, AI colorized, or
-        standard quality.
+        standard quality. Colorize and restore are not set up right now — the tool below shows
+        their live status.
       </p>
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
         <strong>AI disclosure:</strong> when AI upscaling or colorizing is available, your image is
@@ -83,7 +84,7 @@ export default async function EnhancerPage({
           there is no automated image-content check at launch — see the Acceptable Use page. Files are
           processed on our server and deleted immediately after processing (max 60 minutes in any case);
           we never list or share them.
-          Free: unlimited photo enhance, colorize and restore via the free routes, no daily cap.
+          Free: unlimited photo enhance via the free routes, no daily cap. Colorize and restore are not set up right now.
         </p>
       </section>
       <section aria-labelledby="faq-enhance" className="mt-8">

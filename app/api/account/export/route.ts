@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic";
 
 // Exports the caller's own data only: user row + jobs + subscriptions +
 // payments. Never another user's rows (userId always comes from the session).
+export async function POST() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function GET() {
   const session = await getSessionSafe().catch(() => null);
   const userId = session?.user?.id;

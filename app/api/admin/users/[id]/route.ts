@@ -23,6 +23,10 @@ const Patch = z.object({
   reason: z.string().optional(),
 });
 
+export async function POST() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, error } = await requireAdmin(req, ["SUPER"]);

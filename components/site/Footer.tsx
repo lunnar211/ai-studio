@@ -5,8 +5,8 @@ import { FooterAdminLink } from "./FooterAdminLink";
 export function Footer() {
   return (
     <footer className="mt-16 border-t-2 border-line bg-white dark:bg-slate-950">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
-        <div>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 py-10 sm:grid-cols-3">
+        <div className="col-span-2 sm:col-span-1">
           <p className="font-display text-xl font-bold italic">AI Studio</p>
           <p className="mt-2 text-muted-fg dark:text-slate-300">
             Free AI tools for logos and photos. No account needed for the free tier.
@@ -50,9 +50,10 @@ export function Footer() {
           </ul>
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
             Free tier: unlimited logo requests
-            per visitor and unlimited photo enhance, colorize and
-            restore via the free routes. Files are processed on our server and deleted immediately after processing
-            (max 60 minutes in any case); we never list or share them. Browser colorize never uploads your photo at all.
+            per visitor and unlimited photo enhance via the free routes.
+            Colorize and restore are part of the free tier but are not set
+            up right now. Files are processed on our server and deleted immediately after processing
+            (max 60 minutes in any case); we never list or share them.
           </p>
         </nav>
       </div>

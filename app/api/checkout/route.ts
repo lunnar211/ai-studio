@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 
 // Creates a Paddle hosted-checkout transaction for the Premium plan.
 // Auth + age 18+ required. No card data touches this site.
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   const session = await getSessionSafe().catch(() => null);
   const userId = session?.user?.id;

@@ -10,9 +10,10 @@
 // CANONICAL POLICY — FREE + UNLIMITED PHOTOS AND LOGOS (2026-11-01,
 // owner decisions):
 // - Photo jobs on FREE routes are UNLIMITED, forever, for every user
-//   including guests. Free routes = browser on-device colorize (Tier A),
-//   the owner's free server route (Tier B, Space), and local Sharp
-//   enhance / cleanup. There is NO daily photo cap, NO credit balance,
+//   including guests. Free routes = the owner's free server route
+//   (Tier B, Space) and local Sharp enhance / cleanup. (Browser
+//   on-device colorize was removed 2026-11-02.) There is NO daily
+//   photo cap, NO credit balance,
 //   and NO "will use N credits" copy on any free path.
 // - Logo requests are UNLIMITED too, forever, for every user including
 //   guests (owner decision 2026-11-01, extending the photo model).
@@ -30,7 +31,7 @@
 //   (100/day) — that budget is a Premium GPU guardrail, never a free
 //   limit, and it never appears on free paths. Free users are NEVER
 //   routed to paid GPU: when the free routes are unavailable, free
-//   users get the free browser path, never a GPU bill and never a block.
+//   users get free Enhance instead, never a GPU bill and never a block.
 // - Premium-only photo perks: HD 4x upscaling up to 4096px longest
 //   edge, face enhance on upscales, priority generation. Free photo
 //   output is up to 2x / 2048px.
@@ -75,7 +76,7 @@ export const LIMITS = {
     "No ads",
   ],
   freePerks: [
-    "Unlimited photo enhance, colorize and restore via the free routes",
+    "Unlimited photo enhance via the free routes (colorize and restore are part of the free tier but are not set up right now)",
     "Unlimited logo requests, 3 variants each",
     "Saved logo history with favorites when signed in",
     "SVG and 1024px PNG downloads",

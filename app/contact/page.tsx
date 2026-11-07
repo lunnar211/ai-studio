@@ -7,7 +7,9 @@ export default function Contact() {
       <h1 className="font-display text-4xl font-bold italic">Contact</h1>
       <p className="mt-3 text-lg text-muted-fg dark:text-slate-300">
         Tell us what went wrong, what you would like added, or anything else about AI Studio.
-        Messages go to the support inbox for an admin reply. No automated email is sent from this
+        Messages go to the support inbox for an admin reply when the inbox is set up. If the
+        inbox is not set up right now, the form will tell you after you send — your message is
+        never lost silently. No automated email is sent from this
         site — an admin replies from their own email app.
       </p>
       <ContactForm />

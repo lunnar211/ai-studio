@@ -19,7 +19,8 @@ const SIZES: Array<{ value: Size; label: string }> = [
   { value: "wide", label: "Wide (16:9)" },
 ];
 
-export function ImageGeneratorTool() {
+export function ImageGeneratorTool({ signedIn }: { signedIn?: boolean }) {
+  const guest = signedIn === false;
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState<Size>("square");
   const [token, setToken] = useState("");
@@ -111,11 +112,20 @@ export function ImageGeneratorTool() {
         </div>
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || guest}
           className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white disabled:opacity-50"
         >
-          {busy ? "Generating…" : "Generate image (1 credit)"}
+          {busy ? "Generating…" : guest ? "Sign in to generate images" : "Generate image (1 credit)"}
         </button>
+        {guest && (
+          <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
+            Image generation needs an account to count your daily budget.{" "}
+            <Link href="/signin" className="font-semibold underline">
+              Sign in
+            </Link>{" "}
+            to generate — guests can still use the logo maker and photo enhancer without signing in.
+          </p>
+        )}
         {remaining !== null && budget !== null && (
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
             {remaining} of {budget} images left today.

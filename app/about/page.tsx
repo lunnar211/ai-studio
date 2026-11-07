@@ -22,9 +22,10 @@ export default function About() {
       <h2 className="mt-8 text-2xl font-bold">Free tier and premium</h2>
       <p className="mt-3 text-muted-fg dark:text-slate-300">
         The free tier allows unlimited logo requests
-        per visitor and unlimited photo enhance, colorize and
-        restore via the free routes (free server
-        route + local sharpening). Signing in keeps the same free
+        per visitor and unlimited photo enhance via the free routes (free server
+        route + local sharpening). Colorize and restore are part of the free tier
+        but are not set up right now — the photo enhancer shows their live status.
+        Signing in keeps the same free
         use and adds saved logo history,
         favorites, and account features — it does not raise free limits. A Premium plan
         (fast paid-GPU

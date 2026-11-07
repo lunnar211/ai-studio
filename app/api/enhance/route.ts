@@ -27,6 +27,10 @@ export const maxDuration = 60;
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   if ((await getSetting("enhanceEnabled")) !== "true") {
     return NextResponse.json({ error: "The photo enhancer is temporarily disabled." }, { status: 503 });

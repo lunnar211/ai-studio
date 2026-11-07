@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PhotoAvailability } from "@/components/site/PhotoAvailability";
 
 export const metadata: Metadata = {
   title: "Colorize Black-and-White Photos — Free AI Photo Colorization",
   description:
-    "Turn an old black-and-white photo into colour, free, on our server. Upload a JPG, PNG or WebP up to 10 MB. Colours are estimates, not the original colours — every result is labelled honestly.",
+    "Turn an old black-and-white photo into colour on our server. Colorize is part of the free tier but is not set up right now — the photo enhancer shows its live status. Colours are estimates, not the original colours — every result is labelled honestly.",
   openGraph: {
     title: "Colorize Black-and-White Photos | AI Studio",
     description:
@@ -27,7 +28,7 @@ const faqs = [
   },
   {
     q: "Is colorizing really free?",
-    a: "Yes. Server colorize is free and unlimited via the free server route; Premium adds faster paid-GPU processing.",
+    a: "Colorize is part of the free tier, but the server is not set up right now, so it is unavailable at the moment. Once it is set up it will be free and unlimited; Premium adds faster paid-GPU processing.",
   },
   {
     q: "What photos work best?",
@@ -50,7 +51,7 @@ const appLd = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "Colorize black-and-white photos with AI, in the browser or on the server. Colours are estimates, not the original colours.",
+    "Colorize black-and-white photos with AI on the server. Colours are estimates, not the original colours.",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 };
 
@@ -90,6 +91,7 @@ export default function ColorizePage() {
         colorization adds plausible colour back, so the people in the photo feel closer and easier
         to recognize for the next generation.
       </p>
+      <PhotoAvailability />
       <h2 className="mt-8 text-2xl font-bold">How it works</h2>
       <ol className="mt-3 list-decimal space-y-2 pl-6 text-muted-fg dark:text-slate-300">
         <li>Open the photo enhancer and choose the Colorize mode.</li>
@@ -108,10 +110,10 @@ export default function ColorizePage() {
         href="/photo-enhancer?mode=colorize"
         className="mt-8 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white"
       >
-        Colorize my photo — free
+        Try colorize in the photo enhancer
       </Link>
       <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Free: unlimited colorize via the free server route.
+        Colorize is not set up right now — the photo enhancer shows its live status.
       </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">

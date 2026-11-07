@@ -500,10 +500,15 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
   const runDisabled = !file || loading || (isColorizeMode && !colorizeAvailable && freeAlternative !== "enhance");
 
   // Free paths never show credit numbers. The only "limit" text is the
-  // abuse-protection limiter (5/min), which is not a usage cap.
-  const freeLine = isPremium
-    ? "Free — unlimited uses. Premium adds faster server processing, HD 4x and face enhance. Abuse protection only: max 5 requests per minute."
-    : "Free — unlimited uses. Abuse protection only: max 5 requests per minute.";
+  // abuse-protection limiter (5/min), which is not a usage cap. When
+  // colorize is not set up, say so here too — the mode cards and the
+  // run button already do, but this line is what a visitor reads last.
+  const freeLine =
+    caps !== null && !colorizeAvailable
+      ? "Enhance is free — unlimited uses. Colorize and restore are not set up right now. Abuse protection only: max 5 requests per minute."
+      : isPremium
+        ? "Free — unlimited uses. Premium adds faster server processing, HD 4x and face enhance. Abuse protection only: max 5 requests per minute."
+        : "Free — unlimited uses. Abuse protection only: max 5 requests per minute.";
 
   return (
     <div className="mt-8">
@@ -539,7 +544,15 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
                   {c.title}
                 </span>
                 <span className="text-sm text-muted-fg dark:text-slate-400">{c.desc}</span>
-                <span className="text-sm font-medium">Free — unlimited</span>
+                <span className="text-sm font-medium">
+                  {c.value === "enhance"
+                    ? "Free — unlimited"
+                    : caps === null
+                      ? "Checking availability…"
+                      : colorizeAvailable
+                        ? "Free — unlimited"
+                        : "Unavailable right now"}
+                </span>
               </label>
             ))}
           </div>
@@ -615,7 +628,8 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
             {!isPremium && (
               <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
                 Premium (HD 4x, face enhance, faster server processing) is not for sale yet —
-                checkout is not set up. Everything else on this page is free and unlimited.
+                checkout is not set up. Enhance on this page is free and unlimited; colorize and
+                restore will be free and unlimited once the server is set up.
               </p>
             )}
             <p className="mt-2 text-sm text-muted-fg dark:text-slate-400">
@@ -666,7 +680,7 @@ export function EnhancerTool({ initialMode }: { initialMode?: Mode }) {
         )}
         {restoreNote && <div className="mt-3"><Alert kind="info">{restoreNote}</Alert></div>}
         {isColorizeMode && !colorizeAvailable && (
-          <div className="mt-3"><Alert kind="info">Server colorize is not set up right now. Colorize will be available once the server is set up. Free Enhance below sharpens and upscales this photo instead.</Alert></div>
+          <div className="mt-3"><Alert kind="info">{caps?.colorizeBlockedReason ?? "Server colorize is not set up right now."} Colorize will be available once the server is set up. Free Enhance below sharpens and upscales this photo instead.</Alert></div>
         )}
 
         <div className="mt-4"><TurnstileWidget onToken={setToken} /></div>

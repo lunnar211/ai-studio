@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "Is AI Studio really free?",
-    a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free server route + local sharpening, with no account and no payment details. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited.`,
+    a: `Yes. Photo enhance is free and unlimited, with no account and no payment details. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Logo generation is free and unlimited too — one logo request gives 3 variants. Colorize and restore are part of the free tier, but they are not set up right now — the photo enhancer shows whether they are available at the moment. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x up to 4096px, face enhance and priority — not more logos, because logos are already unlimited.`,
   },
   {
     q: "What do I get from the logo generator?",

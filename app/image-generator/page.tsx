@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getSessionSafe } from "@/lib/auth";
 import { ImageGeneratorTool } from "./ImageGeneratorTool";
 
 export const metadata: Metadata = {
@@ -59,7 +60,9 @@ const faqLd = {
   })),
 };
 
-export default function ImageGeneratorPage() {
+export default async function ImageGeneratorPage() {
+  const session = await getSessionSafe().catch(() => null);
+  const signedIn = Boolean(session?.user);
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appLd) }} />
@@ -78,7 +81,7 @@ export default function ImageGeneratorPage() {
         Generation is never unlimited, because every image bills the service — the budget above
         is what keeps it running.
       </p>
-      <ImageGeneratorTool />
+      <ImageGeneratorTool signedIn={signedIn} />
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">
         {faqs.map((f) => (

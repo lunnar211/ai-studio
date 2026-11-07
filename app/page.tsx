@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Sparkles, Wand2, Music, ShieldCheck, Zap, Download } from "lucide-react";
 import { RestoreSection } from "@/components/site/RestoreSection";
+import { PhotoAvailability } from "@/components/site/PhotoAvailability";
 import { Reveal } from "@/components/motion/Reveal";
 
 export const metadata: Metadata = {
@@ -37,7 +38,7 @@ const TOOLS = [
 ];
 
 const FAQS = [
-  { q: "Is AI Studio really free?", a: `Yes. Photo enhance, colorize and restore are free and unlimited via the free server route + local sharpening, with no account and no payment details. Logo generation is free and unlimited too — one logo request gives 3 variants. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x, face enhance and priority, and is sold through Paddle (see Pricing).` },
+  { q: "Is AI Studio really free?", a: `Yes. Photo enhance is free and unlimited, with no account and no payment details. Logo generation is free and unlimited too — one logo request gives 3 variants. Colorize and restore are part of the free tier, but they are not set up right now — the photo enhancer shows whether they are available at the moment. The only limit anywhere is abuse protection: 5 requests per minute per visitor. Signing in keeps the same free use and adds saved logo history; Premium adds fast paid-GPU photo processing, HD 4x, face enhance and priority, and is sold through Paddle (see Pricing).` },
   { q: "What happens to my uploaded photos?", a: "Files are processed on our server and deleted immediately after processing (max 60 minutes in any case). We never list, share or train on them." },
   { q: "Can I use a generated logo for my business?", a: "Yes. Logos are generated as original geometry from your description. Prompts that reference existing brands, characters or public figures are refused, so the result is yours to use. For trademark registration, get independent legal advice." },
   { q: "Why does the enhancer sometimes say standard quality?", a: "When the AI upscaler is not configured or is unavailable, we fall back to a standard sharpening and upscaling pipeline and label it honestly. Standard results are still sharper and larger than the original, but they are not AI upscaling." },
@@ -151,11 +152,14 @@ export default function Home() {
           <h2 id="premium-heading" className="font-display text-3xl font-bold italic">Premium plan</h2>
           <p className="mt-2 max-w-xl text-muted-fg dark:text-slate-300">
             Unlimited logo requests, unlimited
-            photo enhance / colorize / restore via the free routes, fast
+            photo enhance via the free route. Colorize and restore are part of
+            the free tier but are not set up right now — the photo enhancer
+            shows their live status. Premium adds fast
             paid-GPU photo processing, HD 4x export up to 4096px, face enhance, priority generation, and no ads. Premium is
             sold through Paddle — checkout is handled by Paddle as merchant of record, and no card
             details are ever entered on this site.
           </p>
+          <PhotoAvailability />
           <Link href="/pricing" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-5 py-2.5 font-semibold text-white">
             See Premium pricing
           </Link>
@@ -185,7 +189,7 @@ export default function Home() {
         <p className="mt-3 max-w-2xl text-muted-fg dark:text-slate-300">
           No old photo handy? These are real 19th-century photographs from the public domain,
           shown here in black and white. They are originals, not results — open the enhancer and
-          colorize one yourself to see what the tool does.
+          enhance one yourself to see what the tool does (colorize is not set up right now).
         </p>
         <div className="mt-5 grid gap-5 sm:grid-cols-3">
           {[
@@ -220,7 +224,7 @@ export default function Home() {
                   {g.credit} — <Link href={g.file} className="underline">source file</Link>
                 </p>
                 <Link href="/photo-enhancer?mode=colorize" className="mt-3 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
-                  Colorize a photo like this
+                  Try it in the photo enhancer
                 </Link>
               </figcaption>
             </figure>

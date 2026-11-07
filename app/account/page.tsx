@@ -130,7 +130,7 @@ export default async function AccountPage() {
         <h2 className="text-2xl font-bold">Usage today</h2>
         <p className="mt-2 text-muted-fg dark:text-slate-300">
           Logo requests today: {logoToday} (unlimited) ·{" "}
-          Photos: unlimited on the free routes{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
+          Photos: enhance unlimited on the free routes; colorize and restore not set up right now{dbUser.plan === "PREMIUM" ? " + fast paid-GPU processing" : ""}
         </p>
         {budget && budget.applies && (
           <p className="mt-2 text-muted-fg dark:text-slate-300">

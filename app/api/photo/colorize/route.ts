@@ -79,6 +79,10 @@ const Body = z.object({
 const GENERIC_UNAVAILABLE = "Colorize is not available right now \u2014 the server is not set up yet. Free Enhance can still sharpen and upscale this photo.";
 const GENERIC_FAILED = "Colorize is unavailable right now. Please try again later. Free Enhance can still sharpen and upscale this photo.";
 
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   if ((await getSetting("enhanceEnabled")) !== "true") {
     return NextResponse.json({ error: "The photo enhancer is temporarily disabled." }, { status: 503 });

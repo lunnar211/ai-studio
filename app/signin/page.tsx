@@ -31,7 +31,8 @@ export default async function SignInPage({
       <h1 className="font-display text-4xl font-bold italic">Sign in</h1>
       <p className="mt-3 text-lg text-muted-fg dark:text-slate-300">
         Sign in to save your logo history and photo jobs on your account page.
-        Guests can still use both tools free and unlimited — no account needed.
+        Guests can still use both tools free — no account needed. Photo enhance is unlimited;
+        colorize and restore are not set up right now.
       </p>
       <div className="mt-6 border-2 border-line bg-white p-6 dark:bg-slate-900">
         {errorMsg && (

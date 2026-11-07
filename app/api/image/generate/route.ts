@@ -41,6 +41,10 @@ const Body = z.object({
   turnstileToken: z.string().max(2048).optional(),
 });
 
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   let body: unknown;
   try {
