@@ -4,22 +4,22 @@
 
 const GALLERY: Array<{ title: string; prompt: string; brand: string; svg: string }> = [
   {
-    title: "Mountain coffee roaster",
-    prompt: "mountain coffee roaster",
-    brand: "Summit Roast",
-    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="Mountain coffee roaster example logo"><path d="M90 330 L256 110 L422 330 Z" fill="#8B5A2B"/><circle cx="256" cy="170" r="26" fill="#F59E0B"/><rect x="216" y="330" width="80" height="14" rx="7" fill="#3F2D20"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="34" fill="#3F2D20">Summit Roast</text></svg>`,
+    title: "Damak tea shop",
+    prompt: "Damak tea shop with a steaming cup",
+    brand: "Damak Chiya",
+    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="Damak tea shop example logo"><path d="M170 210 h172 v70 a86 86 0 0 1 -172 0 Z" fill="#BE185D"/><path d="M342 230 h28 a34 34 0 0 1 0 68 h-28" fill="none" stroke="#BE185D" stroke-width="18"/><path d="M210 150 q14 -22 0 -44 M266 150 q14 -22 0 -44" fill="none" stroke="#EC4899" stroke-width="14" stroke-linecap="round"/><rect x="196" y="330" width="120" height="14" rx="7" fill="#3F2D20"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="32" fill="#3F2D20">Damak Chiya</text></svg>`,
   },
   {
-    title: "Tech startup",
-    prompt: "minimal geometric tech startup logo",
-    brand: "Nexora",
-    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="Tech startup example logo"><rect x="150" y="150" width="100" height="100" rx="20" fill="#EC4899"/><circle cx="310" cy="200" r="50" fill="#06B6D4"/><rect x="180" y="280" width="150" height="60" rx="30" fill="#111827"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="34" fill="#111827">Nexora</text></svg>`,
+    title: "Trekking lodge",
+    prompt: "trekking lodge in the Himalayas",
+    brand: "Himalaya Lodge",
+    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="Trekking lodge example logo"><path d="M90 330 L256 110 L422 330 Z" fill="#155E75"/><circle cx="256" cy="170" r="26" fill="#F59E0B"/><rect x="216" y="330" width="80" height="14" rx="7" fill="#3F2D20"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="30" fill="#3F2D20">Himalaya Lodge</text></svg>`,
   },
   {
-    title: "Fitness studio",
-    prompt: "bold fitness studio logo",
-    brand: "Pulse Fit",
-    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="Fitness studio example logo"><path d="M40 260 L140 260 L190 180 L250 340 L300 220 L360 260 L470 260" stroke="#EF4444" stroke-width="28" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="34" fill="#111827">Pulse Fit</text></svg>`,
+    title: "School in Nepal",
+    prompt: "friendly school in Nepal with an open book",
+    brand: "Shree Janata School",
+    svg: `<svg viewBox="0 0 512 512" role="img" aria-label="School example logo"><path d="M256 180 C200 140 120 140 90 160 L90 320 C120 300 200 300 256 340 C312 300 392 300 422 320 L422 160 C392 140 312 140 256 180 Z" fill="#EC4899"/><path d="M256 180 L256 340" stroke="#BE185D" stroke-width="10"/><text x="256" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="28" fill="#3F2D20">Shree Janata School</text></svg>`,
   },
   {
     title: "Bakery",
@@ -62,9 +62,10 @@ const GALLERY: Array<{ title: string; prompt: string; brand: string; svg: string
 export default function LogoGallery({ onPick }: { onPick: (prompt: string, brand: string) => void }) {
   return (
     <section aria-label="Example logos" className="mb-10">
-      <h2 className="text-lg font-semibold text-gray-900">Examples — click one to try it</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Original examples made for this page. Clicking one fills the generator below.
+      <h2 className="text-lg font-semibold">Examples — click one to try it</h2>
+      <p className="mt-1 text-muted-fg dark:text-slate-300">
+        Original examples made for this page — small Nepali businesses first: a Damak tea shop,
+        a trekking lodge, a school. Clicking one fills the generator below.
       </p>
       <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-3 lg:grid-cols-9">
         {GALLERY.map((item) => (
@@ -72,11 +73,11 @@ export default function LogoGallery({ onPick }: { onPick: (prompt: string, brand
             key={item.title}
             type="button"
             onClick={() => onPick(item.prompt, item.brand)}
-            className="group rounded-2xl border border-gray-200 bg-white p-2 shadow-sm transition hover:border-pink-400 hover:shadow focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="group min-h-[44px] rounded-[3px] border-2 border-line bg-white p-2 transition hover:border-brand focus:outline-none focus:ring-2 focus:ring-brand dark:bg-slate-900"
             aria-label={`Use example: ${item.title}`}
           >
-            <span className="block aspect-square w-full overflow-hidden rounded-xl bg-gray-50 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: item.svg }} />
-            <span className="mt-2 block truncate text-center text-xs font-medium text-gray-700">{item.title}</span>
+            <span className="block aspect-square w-full overflow-hidden rounded-[3px] bg-cream dark:bg-slate-800 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: item.svg }} />
+            <span className="mt-2 block truncate text-center font-medium">{item.title}</span>
           </button>
         ))}
       </div>

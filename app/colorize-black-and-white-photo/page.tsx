@@ -112,9 +112,6 @@ export default function ColorizePage() {
       >
         Try colorize in the photo enhancer
       </Link>
-      <p className="mt-4 text-sm text-muted-fg dark:text-slate-400">
-        Colorize is not set up right now — the photo enhancer shows its live status.
-      </p>
       <h2 className="mt-10 text-2xl font-bold">Frequently asked questions</h2>
       <div className="mt-3 space-y-4">
         {faqs.map((f) => (

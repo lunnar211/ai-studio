@@ -12,7 +12,7 @@ import LogoGallery from "@/components/LogoGallery";
 // generator page's first paint stays light.
 const MockupPreview = dynamic(() => import("@/components/MockupPreview"), {
   ssr: false,
-  loading: () => <p className="mt-6 text-sm text-gray-500">Loading mockup preview…</p>,
+  loading: () => <p className="mt-6 text-muted-fg dark:text-slate-400">Loading mockup preview…</p>,
 });
 
 const STYLES = [
@@ -24,9 +24,9 @@ const STYLES = [
 ];
 
 const SUGGESTED = [
-  "mountain coffee roaster",
-  "minimal tech startup",
-  "bold fitness studio",
+  "Damak tea shop with a steaming cup",
+  "trekking lodge in the Himalayas",
+  "friendly school in Nepal",
   "warm bakery with wheat",
   "friendly pet care",
 ];
@@ -269,7 +269,7 @@ export function LogoTool() {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Example: a friendly mountain coffee roaster, simple peak and coffee bean mark"
             />
-            <p className="mt-1 text-sm text-muted-fg dark:text-slate-400">{prompt.length}/300 characters. Brand, character and celebrity names are refused.</p>
+            <p className="mt-1 text-muted-fg dark:text-slate-400">{prompt.length}/300 characters. Brand, character and celebrity names are refused.</p>
             {micSupported && (
               <div className="mt-2 flex items-center gap-2">
                 <button
@@ -278,11 +278,11 @@ export function LogoTool() {
                   disabled={transcribing}
                   aria-label={recording ? "Stop recording voice memo" : "Record a voice memo for your logo description"}
                   aria-pressed={recording}
-                  className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-line bg-white px-3 text-sm font-medium hover:border-brand dark:bg-slate-900"
+                  className="inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-line bg-white px-3 font-medium hover:border-brand dark:bg-slate-900"
                 >
                   {recording ? "⏹ Stop recording" : "🎤 Dictate prompt"}
                 </button>
-                <span role="status" className="text-sm text-muted-fg dark:text-slate-400">
+                <span role="status" className="text-muted-fg dark:text-slate-400">
                   {recording ? "Recording… speak now, then stop." : transcribing ? "Transcribing…" : "Voice is transcribed into text you can edit."}
                 </span>
               </div>
@@ -293,7 +293,7 @@ export function LogoTool() {
               <button
                 key={s} type="button"
                 onClick={() => setPrompt(s)}
-                className="rounded-full border border-pink-200 bg-pink-50 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-100 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="min-h-[44px] rounded-[3px] border-2 border-line bg-white px-3 py-1 font-medium text-brand-dark hover:border-brand dark:bg-slate-900"
               >
                 {s}
               </button>
@@ -302,7 +302,7 @@ export function LogoTool() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="logo-brand">Brand name (optional)</Label>
-              <TextInput id="logo-brand" value={brandName} maxLength={40} onChange={(e) => setBrandName(e.target.value)} placeholder="Summit Roast" />
+              <TextInput id="logo-brand" value={brandName} maxLength={40} onChange={(e) => setBrandName(e.target.value)} placeholder="Damak Chiya" />
             </div>
             <div>
               <Label htmlFor="logo-style">Style</Label>
@@ -322,7 +322,7 @@ export function LogoTool() {
             {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
             {loading ? "Generating…" : "Generate 3 logo variants"}
           </Button>
-          <p className="mt-3 text-sm text-muted-fg dark:text-slate-400" aria-live="polite">
+          <p className="mt-3 text-muted-fg dark:text-slate-400" aria-live="polite">
             Logo generation is free and unlimited — one request gives 3 variants.
             {" "}If the AI service is not connected yet, you will see an honest message instead of a fake logo.
           </p>
@@ -333,43 +333,43 @@ export function LogoTool() {
             <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
               <Loader2 size={32} className="animate-spin text-brand" aria-hidden="true" />
               <p className="font-medium">{STAGES[stage]}</p>
-              <p className="text-sm text-muted-fg dark:text-slate-400">Usually about 10 seconds. No streaming preview: each logo is checked on the server before it is shown, so a broken logo never reaches you.</p>
+              <p className="text-muted-fg dark:text-slate-400">Usually about 10 seconds. No streaming preview: each logo is checked on the server before it is shown, so a broken logo never reaches you.</p>
             </div>
           ) : variants.length ? (
             <div>
-              <p className="text-sm font-medium text-gray-900">Pick a variant to preview it as a mockup:</p>
+              <p className="font-medium text-muted-fg dark:text-slate-300">Pick a variant to preview it as a mockup:</p>
               <div className="mt-3 grid grid-cols-3 gap-3" role="list">
                 {variants.map((svg, i) => (
-                  <div key={i} role="listitem" className={`rounded-xl border-2 p-2 ${selected === i ? "border-pink-500 bg-pink-50/50" : "border-gray-200 bg-white"}`}>
+                  <div key={i} role="listitem" className={`rounded-[3px] border-2 p-2 ${selected === i ? "border-brand bg-cream dark:bg-slate-800" : "border-line bg-white dark:bg-slate-900"}`}>
                     <button
                       type="button"
                       onClick={() => setSelected(i)}
-                      className="block aspect-square w-full overflow-hidden rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500 [&>svg]:h-full [&>svg]:w-full"
+                      className="block aspect-square w-full overflow-hidden rounded-[3px] bg-cream focus:outline-none focus:ring-2 focus:ring-brand dark:bg-slate-800 [&>svg]:h-full [&>svg]:w-full"
                       aria-label={`Select logo variant ${i + 1}`}
                       aria-pressed={selected === i}
                     >
                       <span className="block h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
                     </button>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <Button type="button" variant="outline" className="flex-1 px-1 text-xs" disabled={regenIndex !== null} onClick={() => regenerateVariant(i)} aria-label={`Regenerate variant ${i + 1}`}>
+                      <Button type="button" variant="outline" className="min-h-[44px] flex-1 px-1" disabled={regenIndex !== null} onClick={() => regenerateVariant(i)} aria-label={`Regenerate variant ${i + 1}`}>
                         {regenIndex === i ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={14} aria-hidden="true" />} Regenerate
                       </Button>
-                      <Button type="button" variant="outline" className="flex-1 px-1 text-xs" onClick={() => downloadSvg(svg, i)} aria-label={`Download variant ${i + 1} as SVG`}>
+                      <Button type="button" variant="outline" className="min-h-[44px] flex-1 px-1" onClick={() => downloadSvg(svg, i)} aria-label={`Download variant ${i + 1} as SVG`}>
                         <Download size={14} aria-hidden="true" /> SVG
                       </Button>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      <Button type="button" variant="secondary" className="flex-1 px-1 text-xs" onClick={() => downloadPng(svg, i)} aria-label={`Download variant ${i + 1} as PNG 1024 pixels`}>
+                      <Button type="button" variant="secondary" className="min-h-[44px] flex-1 px-1" onClick={() => downloadPng(svg, i)} aria-label={`Download variant ${i + 1} as PNG 1024 pixels`}>
                         <Download size={14} aria-hidden="true" /> PNG 1024
                       </Button>
-                      <Button type="button" variant="outline" className="flex-1 px-1 text-xs" onClick={() => copySvg(svg, i)} aria-label={`Copy variant ${i + 1} SVG code`}>
+                      <Button type="button" variant="outline" className="min-h-[44px] flex-1 px-1" onClick={() => copySvg(svg, i)} aria-label={`Copy variant ${i + 1} SVG code`}>
                         {copied === i ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />} {copied === i ? "Copied" : "Copy SVG"}
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-muted-fg dark:text-slate-400">Regenerating one variant replaces only that variant.</p>
+              <p className="mt-3 text-muted-fg dark:text-slate-400">Regenerating one variant replaces only that variant.</p>
               {variants[selected] && <MockupPreview svg={variants[selected]} brand={brandName} />}
             </div>
           ) : (

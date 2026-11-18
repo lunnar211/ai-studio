@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const BASE_NAV = [
   { href: "/logo-generator", label: "Logo Generator" },
   { href: "/photo-enhancer", label: "Photo Enhancer" },
+  { href: "/image-generator", label: "Image Generator" },
   { href: "/audio-cleaner", label: "Audio Cleaner" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
@@ -14,20 +15,27 @@ const BASE_NAV = [
 
 // Other-project links live in the FOOTER only (Phase 3): the header
 // never links away to sister sites. "My account" is shown only when
-// signed in and "Sign in" only when signed out; while the session
-// check is pending, neither account link is shown (no wrong link
-// flashes). The check is a tiny /api/auth/me call that returns only
-// { signedIn } — no personal data — so public pages stay static.
+// signed in, "Admin" only when signed in AND an admin, and "Sign in"
+// only when signed out; while the session check is pending, neither
+// account link is shown (no wrong link flashes). The check is a tiny
+// /api/auth/me call that returns only { signedIn, isAdmin } — no
+// personal data — so public pages stay static.
 export function Header() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled && d && typeof d.signedIn === "boolean") setSignedIn(d.signedIn);
-        else if (!cancelled) setSignedIn(false);
+        if (cancelled) return;
+        if (d && typeof d.signedIn === "boolean") {
+          setSignedIn(d.signedIn);
+          setIsAdmin(d.isAdmin === true);
+        } else {
+          setSignedIn(false);
+        }
       })
       .catch(() => {
         if (!cancelled) setSignedIn(false);
@@ -41,7 +49,8 @@ export function Header() {
     // Discoverability only: linking to /admin never grants access —
     // the admin pages and APIs still enforce admin role + fresh TOTP
     // server-side, fail-closed, exactly as before.
-    ...(signedIn ? [{ href: "/account", label: "My account" }, { href: "/admin", label: "Admin" }] : []),
+    ...(signedIn ? [{ href: "/account", label: "My account" }] : []),
+    ...(signedIn && isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
     ...(signedIn === false ? [{ href: "/signin", label: "Sign in" }] : []),
   ];
   return (

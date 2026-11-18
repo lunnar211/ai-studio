@@ -18,6 +18,7 @@ export function Footer() {
             {[
               ["/logo-generator", "Logo Generator"],
               ["/photo-enhancer", "Photo Enhancer"],
+              ["/image-generator", "Image Generator"],
               ["/audio-cleaner", "Audio Cleaner"],
               ["/colorize-black-and-white-photo", "Colorize Black-and-White Photos"],
               ["/restore-old-photos", "Restore Old Photos"],
@@ -51,8 +52,7 @@ export function Footer() {
           <p className="mt-3 text-sm text-muted-fg dark:text-slate-400">
             Free tier: unlimited logo requests
             per visitor and unlimited photo enhance via the free routes.
-            Colorize and restore are part of the free tier but are not set
-            up right now. Files are processed on our server and deleted immediately after processing
+            Colorize and restore: see the photo enhancer for their live status. Files are processed on our server and deleted immediately after processing
             (max 60 minutes in any case); we never list or share them.
           </p>
         </nav>

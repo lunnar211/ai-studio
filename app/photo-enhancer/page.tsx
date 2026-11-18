@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { EnhancerTool } from "./EnhancerTool";
 import { RestoreSection } from "@/components/site/RestoreSection";
+import { PhotoAvailability } from "@/components/site/PhotoAvailability";
 
 export const metadata: Metadata = {
   title: "AI Photo Enhancer — Colorize, Restore and Upscale Old Photos",
@@ -55,9 +56,9 @@ export default async function EnhancerPage({
         Upload a photo and get a sharper, larger version back — or bring a black &amp; white photo
         back to colour, or restore an old photo. Drag the slider to compare before and after, then
         download the result. Every result is labelled honestly: AI enhanced, AI colorized, or
-        standard quality. Colorize and restore are not set up right now — the tool below shows
-        their live status.
+        standard quality.
       </p>
+      <PhotoAvailability />
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
         <strong>AI disclosure:</strong> when AI upscaling or colorizing is available, your image is
         sent to our image-processing service for processing and the result is labelled AI-generated — colorize

@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AI Logo Generator | AI Studio",
     description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG.",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "AI Studio logo generator" }],
+    images: [{ url: "/og-logo.jpg", width: 1200, height: 630, alt: "AI Studio logo generator" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AI Logo Generator | AI Studio",
     description: "Describe your brand and generate an original SVG logo. Download SVG or 1024px PNG.",
-    images: ["/og.jpg"],
+    images: ["/og-logo.jpg"],
   },
 };
 
@@ -46,7 +46,7 @@ export default function LogoPage() {
         Describe your brand in plain words — what it does, what feeling it should give — and get
         three original logo variants you can download as SVG or PNG. No account, no design skills needed.
       </p>
-      <a href="#logo-prompt" className="mt-4 inline-block rounded-lg bg-pink-600 px-6 py-3 font-semibold text-white hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-500">
+      <a href="#logo-prompt" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-6 py-2.5 font-semibold text-white hover:bg-brand-dark">
         Generate my logo — free
       </a>
       <p className="mt-3 max-w-2xl border-2 border-line bg-white p-3 text-sm dark:bg-slate-900">
@@ -58,7 +58,7 @@ export default function LogoPage() {
       <section aria-labelledby="how-logo" className="mt-12 border-2 border-line bg-white p-6 dark:bg-slate-900">
         <h2 id="how-logo" className="font-display text-2xl font-bold italic">How to get a good logo</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-6">
-          <li>Write what the business does, not just its name: “a mountain coffee roaster” beats “coffee”.</li>
+          <li>Write what the business does, not just its name: “a Damak tea shop” beats “tea”.</li>
           <li>Add one visual idea: a shape, an animal, a plant, or a symbol that fits the business.</li>
           <li>Pick a style. Minimal suits tech and services; badge suits food, outdoor and craft brands.</li>
           <li>Generate again with a small change if the first result is close but not right — colour or shape, one at a time.</li>

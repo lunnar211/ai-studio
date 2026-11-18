@@ -29,6 +29,15 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Short photo URLs used to 404: the real tool lives at /photo-enhancer.
+  // Permanent redirects (308) so search and bookmarks land on the tool.
+  async redirects() {
+    return [
+      { source: "/colorize", destination: "/photo-enhancer", permanent: true },
+      { source: "/enhance", destination: "/photo-enhancer", permanent: true },
+      { source: "/restore", destination: "/photo-enhancer", permanent: true },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

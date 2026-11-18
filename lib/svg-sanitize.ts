@@ -65,7 +65,7 @@ export function sanitizeSvg(raw: string): string | null {
   const root = extractSvgRoot(raw);
   if (!root) return null;
   // Remove comments and CDATA entirely.
-  let input = root.replace(/<!--[\s\S]*?-->/g, "").replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  const input = root.replace(/<!--[\s\S]*?-->/g, "").replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
   const out: string[] = [];
   const tagRe = /<\/?([a-zA-Z][\w:-]*)((?:\s+[^<>]*)?)\/?>/g;
   let lastIndex = 0;

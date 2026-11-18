@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PhotoAvailability } from "@/components/site/PhotoAvailability";
 export const metadata: Metadata = { title: "About", description: "AI Studio makes two free AI tools: an original logo generator and a photo enhancer. No account needed for the free tier." };
 export default function About() {
   return (
@@ -23,8 +24,8 @@ export default function About() {
       <p className="mt-3 text-muted-fg dark:text-slate-300">
         The free tier allows unlimited logo requests
         per visitor and unlimited photo enhance via the free routes (free server
-        route + local sharpening). Colorize and restore are part of the free tier
-        but are not set up right now — the photo enhancer shows their live status.
+        route + local sharpening). Colorize and restore are part of the free tier;
+        the photo enhancer shows their live status below.
         Signing in keeps the same free
         use and adds saved logo history,
         favorites, and account features — it does not raise free limits. A Premium plan
@@ -32,6 +33,17 @@ export default function About() {
         photo processing, HD 4x up to 4096px, face enhance, priority generation, no ads) is sold through Paddle
         (merchant of record) once checkout is configured — this site never asks you to type card
         details into a form here.
+      </p>
+      <PhotoAvailability />
+      <h2 className="mt-8 text-2xl font-bold">AI Studio on Android</h2>
+      <p className="mt-3 text-muted-fg dark:text-slate-300">
+        The Android app is this website in an app: the same logo maker and photo tools, the same login, the same data. Download the APK, allow install from unknown sources once on your phone, then sign in with your usual account.
+      </p>
+      <a href="https://github.com/lunnar211/android-apps/releases/latest/download/ai-studio-debug.apk" className="mt-4 inline-flex min-h-[44px] items-center rounded-[3px] border-2 border-brand-dark bg-brand-dark px-4 font-semibold text-white">
+        Download for Android (.apk)
+      </a>
+      <p className="mt-3">
+        <a href="https://github.com/lunnar211/android-apps/releases" className="underline">All Android apps on GitHub</a>
       </p>
     </div>
   );
